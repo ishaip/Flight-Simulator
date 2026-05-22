@@ -42,8 +42,11 @@ func Advance(s AircraftState, cmd Command, wind *env.WindModel, dt float64) Airc
 		return advanceAccelerate(s, c, wLat, wLon, wAlt, dt)
 	case Hold:
 		return advanceHold(s, wLat, wLon, wAlt, dt)
-	case Stop, nil:
+	case Stop:
 		return advanceStop(s)
+	case nil:
+		// No active command: continue cruising with current velocity
+		return advanceCruise(s, wLat, wLon, wAlt, dt)
 	case Reset:
 		// Reset will be handled at a higher level in Actor.Run()
 		return s
@@ -131,6 +134,22 @@ func advanceAccelerate(s AircraftState, a Accelerate, wLat, wLon, wAlt, dt float
 
 	s.Lat += s.VLat * dt
 	s.Lon += s.VLon * dt
+
+	return s
+}
+
+// advanceCruise continues cruising with current velocity (no command).
+// Applies wind and updates position without changing velocity.
+func advanceCruise(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState {
+	// Apply wind effect and clamp velocity
+	s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
+
+	// Update position based on velocity
+	s.Lat += s.VLat * dt
+	s.Lon += s.VLon * dt
+	s.Alt += s.VAlt * dt
 
 	return s
 }

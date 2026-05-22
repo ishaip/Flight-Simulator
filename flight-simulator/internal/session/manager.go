@@ -66,12 +66,15 @@ func (m *Manager) GetOrCreate(sessionID string) *Session {
 		logger = &log.Logger{} // Fallback (won't work well, but prevents panic)
 	}
 
-	// Initial state: Tel Aviv, 400m
+	// Initial state: Tel Aviv, 400m, 100 m/s heading north
 	initial := sim.AircraftState{
 		Lat:     32.0853,
 		Lon:     34.7818,
 		Alt:     400,
 		Heading: 0,
+		VLat:    0.0009, // ~100 m/s north (0.0009 deg/s * 111111 m/deg ≈ 100 m/s)
+		VLon:    0,      // no east-west velocity
+		VAlt:    0,      // no vertical velocity
 		SimTime: time.Now().UTC(),
 	}
 

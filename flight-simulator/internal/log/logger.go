@@ -18,12 +18,12 @@ const (
 )
 
 type Logger struct {
-	sessionID  string
-	file       *os.File
-	mu         sync.Mutex
-	logChan    chan logEntry
-	done       chan struct{}
-	infoEnabled bool
+	sessionID    string
+	file         *os.File
+	mu           sync.Mutex
+	logChan      chan logEntry
+	done         chan struct{}
+	infoEnabled  bool
 	traceEnabled bool
 }
 
@@ -43,18 +43,18 @@ func NewLogger(sessionID string) (*Logger, error) {
 	// Create session-specific log file with timestamp
 	timestamp := time.Now().Format("20060102_150405")
 	filename := filepath.Join(outputDir, fmt.Sprintf("output_%s_%s.log", sessionID, timestamp))
-	
+
 	file, err := os.Create(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create log file: %w", err)
 	}
 
 	logger := &Logger{
-		sessionID: sessionID,
-		file:      file,
-		logChan:   make(chan logEntry, 1000),
-		done:      make(chan struct{}),
-		infoEnabled: false,
+		sessionID:    sessionID,
+		file:         file,
+		logChan:      make(chan logEntry, 1000),
+		done:         make(chan struct{}),
+		infoEnabled:  false,
 		traceEnabled: false,
 	}
 

@@ -1,10 +1,11 @@
 package sim
 
 import (
-	"fmt"
 	"flight-simulator/internal/clock"
 	"flight-simulator/internal/env"
 	"flight-simulator/internal/log"
+	"fmt"
+	"time"
 )
 
 // SimulationActor owns the AircraftState and advances it on every tick.
@@ -72,13 +73,17 @@ func (a *SimulationActor) Run() {
 		}
 	}()
 
-	state := a.store.Get()
+	state := a.initial
+	state.SimTime = time.Now().UTC()
+	a.store.Set(state)
+	a.broadcaster.Publish(state)
+
 	var activeCmd Command // nil = stopped
 
 	for tick := range a.tickCh {
 		// --- 1. Advance physics ---
 		dt := tick.DeltaT.Seconds()
-		
+
 		// Recover from panic in physics
 		func() {
 			defer func() {
@@ -88,7 +93,7 @@ func (a *SimulationActor) Run() {
 			}()
 			state = Advance(state, activeCmd, a.wind, dt)
 		}()
-		
+
 		state.SimTime = tick.SimTime
 		state.Seq = tick.Seq
 
