@@ -337,7 +337,7 @@
 <div id="menu-screen">
   <div class="menu-card">
     <h1>Flight Simulator</h1>
-    <p class="subtitle">Tel Aviv, Israel — 1000m altitude</p>
+    <p class="subtitle">Tel Aviv, Israel — 400m altitude</p>
 
     <div class="menu-section">
       <label for="plane-select">Select Aircraft</label>
@@ -423,19 +423,11 @@
     </div>
 
     <div>
-      <div class="section-title">Set Direction</div>
-      <div class="input-row"><label>Lat</label><input type="number" id="setdir-lat" value="32.0853" step="0.001" style="width:100px"/></div>
-      <div class="input-row" style="margin-top:3px"><label>Elevation m</label><input type="number" id="setdir-alt" value="400" step="50" style="width:100px"/></div>
-      <button class="btn primary" style="margin-top:4px" onclick="sendSetDirection()">Set</button>
-    </div>
-
-    <div>
-      <div class="section-title">Acceleration</div>
-      <div class="input-row">
-        <label>m/s²</label>
-        <input type="number" id="acc-val" value="5" step="0.5" />
-      </div>
-      <button class="btn primary" style="margin-top:4px" onclick="applyAccel()">Apply</button>
+      <div class="section-title">Set Direction & Acceleration</div>
+      <div class="input-row"><label>Heading °</label><input type="number" id="setdir-heading" value="0" min="0" max="359" step="1" style="width:100px"/></div>
+      <div class="input-row" style="margin-top:3px"><label>Elevation m</label><input type="number" id="setdir-alt" value="0" step="50" style="width:100px"/></div>
+      <div class="input-row" style="margin-top:3px"><label>Acceleration m/s²</label><input type="number" id="acc-val" value="5" step="0.5" style="width:100px"/></div>
+      <button class="btn primary" style="margin-top:4px" onclick="setDirectionAndAccel()">Set</button>
     </div>
 
     <div>
@@ -510,7 +502,7 @@
 <script>
 const TEL_AVIV_LAT = 32.0853;
 const TEL_AVIV_LON = 34.7818;
-const START_ALT = 1000;
+const START_ALT = 400;
 
 const planeData = {
   cessna:   { icon: '🛩️', name: 'Cessna 172 Skyhawk', desc: 'Stable, reliable single-engine aircraft. Perfect for learning.' },
@@ -705,13 +697,27 @@ async function applyTrace() {
   }
 }
 
-async function sendSetDirection() {
-  const lat = parseFloat(document.getElementById('setdir-lat').value);
+async function setDirectionAndAccel() {
+  // Set direction
+  const heading = parseFloat(document.getElementById('setdir-heading').value);
   const alt = parseFloat(document.getElementById('setdir-alt').value);
-  // Use current lon from the display, or default to Tel Aviv
-  const lon = lastState ? lastState.lon : 34.7818;
+  
+  // Use current position, or default to Tel Aviv
+  const currentLat = lastState ? lastState.lat : 32.0853;
+  const currentLon = lastState ? lastState.lon : 34.7818;
+  
+  // Calculate target point 10 degrees away in the specified heading
+  const distance_degrees = 10;
+  const heading_rad = heading * Math.PI / 180;
+  const lat = currentLat + distance_degrees * Math.cos(heading_rad);
+  const lon = currentLon + distance_degrees * Math.sin(heading_rad);
+  
   const speed = 0; // Let acceleration control the speed
   await post('/command/goto', { lat, lon, alt, speed });
+  
+  // Set acceleration
+  const accelValue = parseFloat(document.getElementById('acc-val').value);
+  await post('/command/accelerate', { value: accelValue });
 }
 
 async function sendStop() {
@@ -733,7 +739,7 @@ const buttonHelp = {
   'Wind': 'Enable environmental wind vectors. Wind affects aircraft velocity every tick.',
   'Time Skip': 'Jump simulation time forward instantly. Useful for testing long-duration scenarios.',
   'Trace': 'Record aircraft trajectory for debugging (toggle on/off).',
-  'Set Direction': 'Set the latitude and elevation to fly toward that position.',
+  'Set Direction & Acceleration': 'Set the heading (0-359°), elevation, and acceleration to fly in that direction with specified speed.',
   'Stop': 'Halt the aircraft (zero velocity) and return to the main menu.',
 };
 
