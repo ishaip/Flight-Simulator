@@ -1,0 +1,18 @@
+# Backup files
+*.exe~
+*.swp
+*.swo
+*~
+
+# Build artifacts
+simulator.exe
+*.o
+*.a
+
+# Go
+go.sum
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace

@@ -505,12 +505,12 @@ const TEL_AVIV_LON = 34.7818;
 const START_ALT = 400;
 
 const planeData = {
-  cessna:   { icon: '🛩️', name: 'Cessna 172 Skyhawk', desc: 'Stable, reliable single-engine aircraft. Perfect for learning.' },
-  piper:    { icon: '✈️', name: 'Piper PA-28 Cherokee', desc: 'Nimble general-aviation workhorse.' },
-  cirrus:   { icon: '✈️', name: 'Cirrus SR22', desc: 'High-performance with CAPS emergency parachute.' },
-  bonanza:  { icon: '✈️', name: 'Beechcraft Bonanza', desc: 'Comfortable and capable mid-range cruiser.' },
-  baron:    { icon: '🛩️', name: 'Beechcraft Baron', desc: 'Twin-engine power for serious missions.' },
-  fighter:  { icon: '🎖️', name: 'F-16 Fighting Falcon', desc: 'Supersonic military fighter. Extreme performance.' },
+  cessna:   { icon: '🛩️', name: 'Cessna 172 Skyhawk', desc: 'Stable, reliable single-engine aircraft. Perfect for learning.', maxAccel: 3 },
+  piper:    { icon: '✈️', name: 'Piper PA-28 Cherokee', desc: 'Nimble general-aviation workhorse.', maxAccel: 4 },
+  cirrus:   { icon: '✈️', name: 'Cirrus SR22', desc: 'High-performance with CAPS emergency parachute.', maxAccel: 5 },
+  bonanza:  { icon: '✈️', name: 'Beechcraft Bonanza', desc: 'Comfortable and capable mid-range cruiser.', maxAccel: 5 },
+  baron:    { icon: '🛩️', name: 'Beechcraft Baron', desc: 'Twin-engine power for serious missions.', maxAccel: 6 },
+  fighter:  { icon: '🎖️', name: 'F-16 Fighting Falcon', desc: 'Supersonic military fighter. Extreme performance.', maxAccel: 12 },
 };
 
 let isPaused = false, lastState = null, windEnabled = false, simStarted = false, selectedPlane = 'cessna';
@@ -531,7 +531,13 @@ function updatePlanePreview() {
   const p = planeData[selectedPlane];
   document.getElementById('plane-icon-preview').textContent = p.icon;
   document.getElementById('plane-name').textContent = p.name;
-  document.getElementById('plane-desc').textContent = p.desc;
+  document.getElementById('plane-desc').textContent = p.desc + ` (Max Accel: ${p.maxAccel} m/s²)`;
+  // Update acceleration input default and max
+  const accelInput = document.getElementById('acc-val');
+  if (accelInput) {
+    accelInput.value = p.maxAccel;
+    accelInput.max = p.maxAccel;
+  }
 }
 
 function startSimulation() {
@@ -539,6 +545,13 @@ function startSimulation() {
   document.getElementById('menu-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   simStarted = true;
+  // Set acceleration based on selected plane
+  const p = planeData[selectedPlane];
+  const accelInput = document.getElementById('acc-val');
+  if (accelInput) {
+    accelInput.value = p.maxAccel;
+    accelInput.max = p.maxAccel;
+  }
   initMap();
   connectSSE();
 }
