@@ -483,7 +483,7 @@
       <div class="toggle-wrap">
         <label for="trace-log-toggle">Trace Logs</label>
         <label class="switch">
-          <input type="checkbox" id="trace-log-toggle" onchange="toggleTraceLogs()" />
+          <input type="checkbox" id="trace-log-toggle" checked onchange="toggleTraceLogs()" />
           <span class="slider"></span>
         </label>
       </div>
@@ -585,7 +585,7 @@ function connectSSE() {
   if (sse) { sse.close(); }
   if (!simStarted || !sessionID) return;
   sse = new EventSource(`/stream?sid=${encodeURIComponent(sessionID)}`);
-  sse.onopen = () => { setStatus(true); log('SSE connected', 'info'); };
+  sse.onopen = () => { setStatus(true); log('SSE connected', 'trace'); };
   sse.onmessage = (e) => {
     try {
       const st = JSON.parse(e.data);
@@ -651,7 +651,7 @@ async function post(path, body) {
     let data;
     try { data = JSON.parse(text); } catch(_) { data = text; }
     if (r.ok) {
-      log(`${path} → ${JSON.stringify(data)}`, 'success');
+      log(`${path} → ${JSON.stringify(data)}`, 'trace');
     } else {
       log(`${path} ERROR ${r.status}: ${text}`, 'error');
     }
@@ -791,6 +791,14 @@ function fmtE(v) {
 
 const MAX_LOGS = 200;
 function log(msg, level = 'info') {
+  // Filter based on toggle states
+  if (level === 'trace' && !document.getElementById('trace-log-toggle')?.checked) {
+    return; // Don't display trace logs when trace is disabled
+  }
+  if (level === 'info' && !document.getElementById('info-toggle')?.checked) {
+    return; // Don't display info logs when info is disabled
+  }
+  
   const lines = document.getElementById('log-lines');
   const d = document.createElement('div');
   d.className = `log-line ${level}`;

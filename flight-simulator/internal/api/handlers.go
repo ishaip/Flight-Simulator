@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -70,6 +71,8 @@ func (d *deps) handleGoto(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	sess.Logger.Trace(fmt.Sprintf("command/goto: lat=%.6f lon=%.6f alt=%.1f speed=%.1f", body.Lat, body.Lon, body.Alt, body.Speed))
+	sess.Logger.Info(fmt.Sprintf("User command: goto to (%.6f, %.6f) at %.1f m altitude with %.1f m/s", body.Lat, body.Lon, body.Alt, body.Speed))
 	sess.Actor.SendCommand(sim.GotoPoint{Lat: body.Lat, Lon: body.Lon, Alt: body.Alt, Speed: body.Speed})
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
@@ -103,8 +106,10 @@ func (d *deps) handleStop(w http.ResponseWriter, r *http.Request) {
 	sess := d.manager.GetOrCreate(sessionID)
 	setSessionIDCookie(w, sess.ID)
 
-	sess.Actor.SendCommand(sim.Reset{})
-	writeJSON(w, http.StatusAccepted, map[string]string{"status": "simulator reset"})
+	sess.Logger.Trace("command/stop")
+	sess.Logger.Info("User command: stop")
+	sess.Actor.SendCommand(sim.Stop{})
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "stopped"})
 }
 
 // ---- /command/hold ----
@@ -131,6 +136,8 @@ func (d *deps) handleAccelerate(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	sess.Logger.Trace(fmt.Sprintf("command/accelerate: value=%.2f", body.Value))
+	sess.Logger.Info(fmt.Sprintf("User command: accelerate at %.2f m/s²", body.Value))
 	sess.Actor.SendCommand(sim.Accelerate{Value: body.Value})
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
@@ -165,6 +172,10 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 // ---- /sim/pause ----
 
 func (d *deps) handlePause(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	sess.Logger.Trace("sim/pause")
+	sess.Logger.Info("User command: pause simulation")
 	d.bus.Pause()
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "paused"})
 }
@@ -172,6 +183,10 @@ func (d *deps) handlePause(w http.ResponseWriter, r *http.Request) {
 // ---- /sim/resume ----
 
 func (d *deps) handleResume(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	sess.Logger.Trace("sim/resume")
+	sess.Logger.Info("User command: resume simulation")
 	d.bus.Resume()
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "resumed"})
 }
@@ -179,12 +194,17 @@ func (d *deps) handleResume(w http.ResponseWriter, r *http.Request) {
 // ---- /sim/hz ----
 
 func (d *deps) handleHz(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	
 	var body struct {
 		Hz float64 `json:"hz"`
 	}
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	sess.Logger.Trace(fmt.Sprintf("sim/hz: hz=%.1f", body.Hz))
+	sess.Logger.Info(fmt.Sprintf("User setting: simulator speed changed to %.1f Hz", body.Hz))
 	d.bus.SetHz(body.Hz)
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "hz updated"})
 }
@@ -192,6 +212,9 @@ func (d *deps) handleHz(w http.ResponseWriter, r *http.Request) {
 // ---- /sim/skip ----
 
 func (d *deps) handleSkip(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	
 	var body struct {
 		By string `json:"by"` // e.g. "30s", "5m"
 		To string `json:"to"` // ISO 8601
@@ -205,6 +228,8 @@ func (d *deps) handleSkip(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid duration: "+err.Error(), http.StatusBadRequest)
 			return
 		}
+		sess.Logger.Trace(fmt.Sprintf("sim/skip: by=%s", body.By))
+		sess.Logger.Info(fmt.Sprintf("User command: skip time by %s", body.By))
 		d.bus.SkipBy(dur)
 		writeJSON(w, http.StatusAccepted, map[string]string{"status": "fast-forwarding"})
 		return
@@ -215,6 +240,8 @@ func (d *deps) handleSkip(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid time (RFC3339): "+err.Error(), http.StatusBadRequest)
 			return
 		}
+		sess.Logger.Trace(fmt.Sprintf("sim/skip: to=%s", body.To))
+		sess.Logger.Info(fmt.Sprintf("User command: skip time to %s", body.To))
 		d.bus.SkipTo(t)
 		writeJSON(w, http.StatusAccepted, map[string]string{"status": "fast-forwarding"})
 		return
@@ -239,8 +266,11 @@ func (d *deps) handleWind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if body.Enabled != nil {
+		sess.Logger.Trace(fmt.Sprintf("wind: enabled=%v", *body.Enabled))
+		sess.Logger.Info(fmt.Sprintf("User setting: wind %s", map[bool]string{true: "enabled", false: "disabled"}[*body.Enabled]))
 		sess.Wind.SetEnabled(*body.Enabled)
 	}
+	sess.Logger.Trace(fmt.Sprintf("wind: vLat=%.6f vLon=%.6f vAlt=%.2f", body.VLat, body.VLon, body.VAlt))
 	sess.Wind.SetVector(body.VLat, body.VLon, body.VAlt)
 	writeJSON(w, http.StatusAccepted, sess.Wind.Get())
 }
@@ -258,6 +288,7 @@ func (d *deps) handleLogInfo(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	sess.Logger.Trace(fmt.Sprintf("log/info: enabled=%v", body.Enabled))
 	sess.Logger.SetInfoEnabled(body.Enabled)
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "info logging updated"})
 }
@@ -275,6 +306,7 @@ func (d *deps) handleLogTrace(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	sess.Logger.Trace(fmt.Sprintf("log/trace: enabled=%v", body.Enabled))
 	sess.Logger.SetTraceEnabled(body.Enabled)
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "trace logging updated"})
 }

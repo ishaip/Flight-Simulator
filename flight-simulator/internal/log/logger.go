@@ -55,7 +55,7 @@ func NewLogger(sessionID string) (*Logger, error) {
 		logChan:      make(chan logEntry, 1000),
 		done:         make(chan struct{}),
 		infoEnabled:  false,
-		traceEnabled: false,
+		traceEnabled: true,
 	}
 
 	// Start background logging goroutine

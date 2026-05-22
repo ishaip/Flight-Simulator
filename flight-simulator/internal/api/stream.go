@@ -33,6 +33,8 @@ func (d *deps) handleStream(w http.ResponseWriter, r *http.Request) {
 	ch := sess.Broadcaster.Subscribe()
 	defer sess.Broadcaster.Unsubscribe(ch)
 
+	sess.Logger.Trace("SSE client connected")
+
 	for {
 		select {
 		case state, open := <-ch:
