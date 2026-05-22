@@ -245,6 +245,40 @@ func (d *deps) handleWind(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, sess.Wind.Get())
 }
 
+// ---- /log/info ----
+
+func (d *deps) handleLogInfo(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	setSessionIDCookie(w, sess.ID)
+
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	sess.Logger.SetInfoEnabled(body.Enabled)
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "info logging updated"})
+}
+
+// ---- /log/trace ----
+
+func (d *deps) handleLogTrace(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	setSessionIDCookie(w, sess.ID)
+
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	sess.Logger.SetTraceEnabled(body.Enabled)
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "trace logging updated"})
+}
+
 // ---- /help ----
 
 var helpDoc = map[string]any{

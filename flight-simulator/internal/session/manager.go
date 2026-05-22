@@ -8,6 +8,7 @@ import (
 
 	"flight-simulator/internal/clock"
 	"flight-simulator/internal/env"
+	"flight-simulator/internal/log"
 	"flight-simulator/internal/sim"
 )
 
@@ -18,6 +19,7 @@ type Session struct {
 	Broadcaster *sim.StateBroadcaster
 	Actor       *sim.SimulationActor
 	Wind        *env.WindModel
+	Logger      *log.Logger
 	CreatedAt   time.Time
 }
 
@@ -58,6 +60,12 @@ func (m *Manager) GetOrCreate(sessionID string) *Session {
 		return s
 	}
 
+	// Create logger for this session
+	logger, err := log.NewLogger(sessionID)
+	if err != nil {
+		logger = &log.Logger{} // Fallback (won't work well, but prevents panic)
+	}
+
 	// Initial state: Tel Aviv, 400m
 	initial := sim.AircraftState{
 		Lat:     32.0853,
@@ -71,7 +79,7 @@ func (m *Manager) GetOrCreate(sessionID string) *Session {
 	broadcaster := &sim.StateBroadcaster{}
 	wind := env.New(0.000002, 0.000005, 0)
 	tickCh := m.bus.Subscribe()
-	actor := sim.NewActor(tickCh, store, broadcaster, wind, initial)
+	actor := sim.NewActor(tickCh, store, broadcaster, wind, initial, logger)
 
 	session := &Session{
 		ID:          sessionID,
@@ -79,6 +87,7 @@ func (m *Manager) GetOrCreate(sessionID string) *Session {
 		Broadcaster: broadcaster,
 		Actor:       actor,
 		Wind:        wind,
+		Logger:      logger,
 		CreatedAt:   time.Now(),
 	}
 

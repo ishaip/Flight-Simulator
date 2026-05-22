@@ -49,6 +49,10 @@ func NewServer(
 	// Wind.
 	mux.HandleFunc("POST /wind", d.handleWind)
 
+	// Logging.
+	mux.HandleFunc("POST /log/info", d.handleLogInfo)
+	mux.HandleFunc("POST /log/trace", d.handleLogTrace)
+
 	// Frontend — serve web/index.html at /.
 	mux.Handle("/", staticFS)
 
