@@ -123,6 +123,45 @@ func (d *deps) handleHold(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
+// ---- /command/set-direction-and-accel ----
+
+func (d *deps) handleSetDirectionAndAccel(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	setSessionIDCookie(w, sess.ID)
+
+	var body struct {
+		Heading      float64 `json:"heading"`      
+		Acceleration float64 `json:"acceleration"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	sess.Logger.Trace(fmt.Sprintf("command/set-direction-and-accel: heading=%.2f accel=%.2f", body.Heading, body.Acceleration))
+	sess.Logger.Info(fmt.Sprintf("User command: heading %.2f° with acceleration %.2f m/s²", body.Heading, body.Acceleration))
+	sess.Actor.SendCommand(sim.SetDirectionAndAccel{Heading: body.Heading, Acceleration: body.Acceleration})
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+// ---- /command/set-heading ----
+
+func (d *deps) handleSetHeading(w http.ResponseWriter, r *http.Request) {
+	sessionID := getSessionID(r)
+	sess := d.manager.GetOrCreate(sessionID)
+	setSessionIDCookie(w, sess.ID)
+
+	var body struct {
+		Heading float64 `json:"heading"`
+	}
+	if !decodeBody(w, r, &body) {
+		return
+	}
+	sess.Logger.Trace(fmt.Sprintf("command/set-heading: heading=%.2f°", body.Heading))
+	sess.Logger.Info(fmt.Sprintf("User command: set heading to %.2f°", body.Heading))
+	sess.Actor.SendCommand(sim.SetHeading{Heading: body.Heading})
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
 // ---- /command/accelerate ----
 
 func (d *deps) handleAccelerate(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +235,7 @@ func (d *deps) handleResume(w http.ResponseWriter, r *http.Request) {
 func (d *deps) handleHz(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
 	sess := d.manager.GetOrCreate(sessionID)
-	
+
 	var body struct {
 		Hz float64 `json:"hz"`
 	}
@@ -214,7 +253,7 @@ func (d *deps) handleHz(w http.ResponseWriter, r *http.Request) {
 func (d *deps) handleSkip(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
 	sess := d.manager.GetOrCreate(sessionID)
-	
+
 	var body struct {
 		By string `json:"by"` // e.g. "30s", "5m"
 		To string `json:"to"` // ISO 8601

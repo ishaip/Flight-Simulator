@@ -557,10 +557,32 @@ function startSimulation() {
   }
   initMap();
   connectSSE();
+  loadInitialState();
+}
+
+async function loadInitialState() {
+  try {
+    const url = sessionID ? `/state?sid=${encodeURIComponent(sessionID)}` : '/state';
+    const r = await fetch(url);
+    if (r.ok) {
+      const st = await r.json();
+      lastState = st;
+      updateStats(st);
+      updateMap(st);
+      updateModeBadge(st);
+    }
+  } catch (_) {
+    // Silently fail; SSE will update state when it connects
+  }
 }
 
 function initMap() {
-  if (map) return;
+  // Destroy old map if it exists
+  if (map) {
+    map.remove();
+    map = null;
+    planeMarker = null;
+  }
   map = L.map('map', { zoomControl: true, attributionControl: true });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
@@ -714,26 +736,11 @@ async function applyTrace() {
 }
 
 async function setDirectionAndAccel() {
-  // Set direction
   const heading = parseFloat(document.getElementById('setdir-heading').value);
-  const alt = parseFloat(document.getElementById('setdir-alt').value);
-  
-  // Use current position, or default to Tel Aviv
-  const currentLat = lastState ? lastState.lat : 32.0853;
-  const currentLon = lastState ? lastState.lon : 34.7818;
-  
-  // Calculate target point 10 degrees away in the specified heading
-  const distance_degrees = 10;
-  const heading_rad = heading * Math.PI / 180;
-  const lat = currentLat + distance_degrees * Math.cos(heading_rad);
-  const lon = currentLon + distance_degrees * Math.sin(heading_rad);
-  
-  const speed = 0; // Let acceleration control the speed
-  await post('/command/goto', { lat, lon, alt, speed });
-  
-  // Set acceleration
   const accelValue = parseFloat(document.getElementById('acc-val').value);
-  await post('/command/accelerate', { value: accelValue });
+  
+  // Send a single combined command
+  await post('/command/set-direction-and-accel', { heading, acceleration: accelValue });
 }
 
 async function sendStop() {
@@ -741,6 +748,24 @@ async function sendStop() {
   await post('/command/stop', {});
   // Clear logs
   document.getElementById('log-lines').innerHTML = '';
+  // Reset state and UI
+  lastState = null;
+  // Destroy map
+  if (map) {
+    map.remove();
+    map = null;
+    planeMarker = null;
+  }
+  // Reset all displays to dashes
+  setText('s-lat', '—');
+  setText('s-lon', '—');
+  setText('s-alt', '—');
+  setText('s-vlat', '—');
+  setText('s-vlon', '—');
+  setText('s-valt', '—');
+  setText('s-heading', '—');
+  setText('s-seq', '—');
+  setText('s-simtime', '—');
   // Return to main menu
   document.getElementById('menu-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');

@@ -38,6 +38,10 @@ func Advance(s AircraftState, cmd Command, wind *env.WindModel, dt float64) Airc
 		return advanceGoto(s, c, wLat, wLon, wAlt, dt)
 	case *Trajectory:
 		return advanceTrajectory(s, c, wLat, wLon, wAlt, dt)
+	case SetHeading:
+		return advanceSetHeading(s, c, wLat, wLon, wAlt, dt)
+	case SetDirectionAndAccel:
+		return advanceSetDirectionAndAccel(s, c, wLat, wLon, wAlt, dt)
 	case Accelerate:
 		return advanceAccelerate(s, c, wLat, wLon, wAlt, dt)
 	case Hold:
@@ -119,6 +123,47 @@ func advanceTrajectory(s AircraftState, t *Trajectory, wLat, wLon, wAlt, dt floa
 		}
 	}
 	return next
+}
+
+// advanceSetDirectionAndAccel sets heading and applies acceleration along it.
+func advanceSetDirectionAndAccel(s AircraftState, sd SetDirectionAndAccel, wLat, wLon, wAlt, dt float64) AircraftState {
+	s.Heading = sd.Heading
+
+	// Apply acceleration along the heading direction
+	rad := sd.Heading * math.Pi / 180
+	accDeg := sd.Acceleration / metersPerDegree // m/s² → °/s²
+
+	s.VLat += accDeg * math.Cos(rad) * dt
+	s.VLon += accDeg * math.Sin(rad) * dt
+
+	// Apply wind and clamp velocity
+	s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
+
+	// Update position based on velocity
+	s.Lat += s.VLat * dt
+	s.Lon += s.VLon * dt
+	s.Alt += s.VAlt * dt
+
+	return s
+}
+
+// advanceSetHeading sets the aircraft heading without affecting velocity.
+func advanceSetHeading(s AircraftState, sh SetHeading, wLat, wLon, wAlt, dt float64) AircraftState {
+	s.Heading = sh.Heading
+
+	// Apply wind and clamp velocity
+	s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
+
+	// Update position based on velocity
+	s.Lat += s.VLat * dt
+	s.Lon += s.VLon * dt
+	s.Alt += s.VAlt * dt
+
+	return s
 }
 
 // advanceAccelerate applies the throttle input along the current heading.

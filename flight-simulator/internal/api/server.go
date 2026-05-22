@@ -29,6 +29,8 @@ func NewServer(
 	// Simulation commands.
 	mux.HandleFunc("POST /command/goto", d.handleGoto)
 	mux.HandleFunc("POST /command/trajectory", d.handleTrajectory)
+	mux.HandleFunc("POST /command/set-direction-and-accel", d.handleSetDirectionAndAccel)
+	mux.HandleFunc("POST /command/set-heading", d.handleSetHeading)
 	mux.HandleFunc("POST /command/stop", d.handleStop)
 	mux.HandleFunc("POST /command/hold", d.handleHold)
 	mux.HandleFunc("POST /command/accelerate", d.handleAccelerate)
