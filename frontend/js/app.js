@@ -204,15 +204,6 @@ async function applyHz() {
   await post('/sim/hz', { hz });
 }
 
-async function applyWind() {
-  const enabled = document.getElementById('wind-toggle').checked;
-  const vLat = parseFloat(document.getElementById('w-lat').value) || 0;
-  const vLon = parseFloat(document.getElementById('w-lon').value) || 0;
-  const vAlt = parseFloat(document.getElementById('w-alt').value) || 0;
-  await post('/wind', { enabled, vLat, vLon, vAlt });
-  await refreshWindDisplay();
-}
-
 async function skip(by) {
   await post('/sim/skip', { by });
   showModeBadgeFF();
