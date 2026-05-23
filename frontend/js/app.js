@@ -3,12 +3,12 @@ const TEL_AVIV_LON = 34.7818;
 const START_ALT = 400;
 
 const planeData = {
-  cessna:   { icon: 'ðŸ›©ï¸', name: 'Cessna 172 Skyhawk', desc: 'Stable, reliable single-engine aircraft. Perfect for learning.' },
-  piper:    { icon: 'âœˆï¸', name: 'Piper PA-28 Cherokee', desc: 'Nimble general-aviation workhorse.' },
-  cirrus:   { icon: 'âœˆï¸', name: 'Cirrus SR22', desc: 'High-performance with CAPS emergency parachute.' },
-  bonanza:  { icon: 'âœˆï¸', name: 'Beechcraft Bonanza', desc: 'Comfortable and capable mid-range cruiser.' },
-  baron:    { icon: 'ðŸ›©ï¸', name: 'Beechcraft Baron', desc: 'Twin-engine power for serious missions.' },
-  fighter:  { icon: 'ðŸŽ–ï¸', name: 'F-16 Fighting Falcon', desc: 'Supersonic military fighter. Extreme performance.' },
+  cessna:   { icon: '🛩️', name: 'Cessna 172 Skyhawk', desc: 'Stable, reliable single-engine aircraft. Perfect for learning.' },
+  piper:    { icon: '✈️', name: 'Piper PA-28 Cherokee', desc: 'Nimble general-aviation workhorse.' },
+  cirrus:   { icon: '✈️', name: 'Cirrus SR22', desc: 'High-performance with CAPS emergency parachute.' },
+  bonanza:  { icon: '✈️', name: 'Beechcraft Bonanza', desc: 'Comfortable and capable mid-range cruiser.' },
+  baron:    { icon: '🛩️', name: 'Beechcraft Baron', desc: 'Twin-engine power for serious missions.' },
+  fighter:  { icon: '🎖️', name: 'F-16 Fighting Falcon', desc: 'Supersonic military fighter. Extreme performance.' },
 };
 
 let isPaused = false, lastState = null, windEnabled = false, simStarted = false, selectedPlane = 'cessna';
@@ -36,6 +36,7 @@ function updatePlanePreview() {
 
 function startSimulation() {
   initSessionID();
+  updatePlanePreview();  // Ensure selectedPlane is initialized from dropdown
   document.getElementById('menu-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   simStarted = true;
@@ -82,7 +83,7 @@ function initMap() {
   }).addTo(map);
   map.setView([TEL_AVIV_LAT, TEL_AVIV_LON], 11);
   let planeIcon = L.divIcon({
-    html: '<span class="plane-icon" id="plane-icon-el">âœˆ</span>',
+    html: '<span class="plane-icon" id="plane-icon-el">✈️</span>',
     className: '',
     iconSize:   [28, 28],
     iconAnchor: [14, 14],
@@ -127,7 +128,7 @@ function connectSSE() {
   });
   sse.onerror = () => {
     setStatus(false);
-    log('SSE disconnected â€” reconnectingâ€¦', 'warn');
+    log('SSE disconnected — reconnecting…', 'warn');
     setTimeout(connectSSE, 3000);
   };
 }
@@ -186,7 +187,7 @@ async function post(path, body) {
     let data;
     try { data = JSON.parse(text); } catch(_) { data = text; }
     if (r.ok) {
-      log(`${path} â†’ ${JSON.stringify(data)}`, 'trace');
+      log(`${path} → ${JSON.stringify(data)}`, 'trace');
     } else {
       log(`${path} ERROR ${r.status}: ${text}`, 'error');
     }
@@ -295,7 +296,7 @@ function updateWaypointsList() {
     html += `
       <div style="padding:6px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center">
         <span style="flex:1">${idx + 1}. (${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)}) ${wp.alt}m</span>
-        <button style="background:#d32f2f; color:white; border:none; border-radius:2px; padding:2px 6px; cursor:pointer; font-size:10px" onclick="removeWaypoint(${idx})">Ã—</button>
+        <button style="background:#d32f2f; color:white; border:none; border-radius:2px; padding:2px 6px; cursor:pointer; font-size:10px" onclick="removeWaypoint(${idx})">×</button>
       </div>
     `;
   });
@@ -359,15 +360,15 @@ async function sendStop() {
     planeMarker = null;
   }
   // Reset all displays to dashes
-  setText('s-lat', 'â€”');
-  setText('s-lon', 'â€”');
-  setText('s-alt', 'â€”');
-  setText('s-vlat', 'â€”');
-  setText('s-vlon', 'â€”');
-  setText('s-valt', 'â€”');
-  setText('s-heading', 'â€”');
-  setText('s-seq', 'â€”');
-  setText('s-simtime', 'â€”');
+  setText('s-lat', '—');
+  setText('s-lon', '—');
+  setText('s-alt', '—');
+  setText('s-vlat', '—');
+  setText('s-vlon', '—');
+  setText('s-valt', '—');
+  setText('s-heading', '—');
+  setText('s-seq', '—');
+  setText('s-simtime', '—');
   // Return to main menu
   document.getElementById('menu-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
@@ -409,10 +410,10 @@ function setText(id, val) {
   if (el) el.textContent = val;
 }
 
-function fmt6(v) { return typeof v === 'number' ? v.toFixed(6) : 'â€”'; }
-function fmt1(v) { return typeof v === 'number' ? v.toFixed(1) : 'â€”'; }
+function fmt6(v) { return typeof v === 'number' ? v.toFixed(6) : '—'; }
+function fmt1(v) { return typeof v === 'number' ? v.toFixed(1) : '—'; }
 function fmtE(v) {
-  if (typeof v !== 'number') return 'â€”';
+  if (typeof v !== 'number') return '—';
   return (v * 111320).toFixed(2);
 }
 
