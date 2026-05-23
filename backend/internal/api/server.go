@@ -39,6 +39,7 @@ func NewServer(
 	mux.HandleFunc("GET /stream", d.handleStream)
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /help", handleHelp)
+	mux.HandleFunc("POST /shutdown", handleShutdown)
 
 	// Sim control.
 	mux.HandleFunc("POST /sim/pause", d.handlePause)

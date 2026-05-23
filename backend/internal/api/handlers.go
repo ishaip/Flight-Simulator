@@ -3,7 +3,9 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"flight-simulator/internal/clock"
@@ -224,6 +226,17 @@ func (d *deps) handleState(w http.ResponseWriter, r *http.Request) {
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// ---- /shutdown ----
+
+func handleShutdown(w http.ResponseWriter, r *http.Request) {
+	log.Println("shutdown endpoint called")
+	writeJSON(w, http.StatusOK, map[string]string{"status": "shutting down"})
+	go func() {
+		time.Sleep(100 * time.Millisecond) // Brief delay to allow response to send
+		os.Exit(0)
+	}()
 }
 
 // ---- /sim/pause ----

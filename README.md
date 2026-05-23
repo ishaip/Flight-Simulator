@@ -125,6 +125,7 @@ Key endpoints:
 | POST   | `/sim/hz`              | Set tick rate (10–60 Hz)                 |
 | POST   | `/sim/skip`            | Fast-forward simulated time              |
 | GET    | `/health`              | Health check                             |
+| POST   | `/shutdown`            | Gracefully shut down the server          |
 
 ---
 
