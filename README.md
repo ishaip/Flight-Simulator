@@ -65,16 +65,28 @@ make build
 
 ### Run with Docker
 
+**Prerequisites:**
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (includes docker & docker-compose)
+
+**On Linux/macOS:**
 ```sh
 make docker-build
 make docker-run
 ```
 
-Or with Docker Compose:
+**On Windows (PowerShell):**
+```powershell
+# Skip 'make' — run docker directly
+docker build -t flight-simulator:latest .
+docker run --rm -p 8080:8080 flight-simulator:latest
+```
 
+**Or use Docker Compose (all platforms):**
 ```sh
 docker-compose up --build
 ```
+
+Then open `http://localhost:8080` in your browser.
 
 ---
 

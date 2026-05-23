@@ -183,11 +183,11 @@ func TestAdvance_Trajectory_AdvancesWaypointOnArrival(t *testing.T) {
 
 func TestBearingDeg(t *testing.T) {
 	tests := []struct {
-		name          string
-		lat1, lon1    float64
-		lat2, lon2    float64
-		wantDeg       float64
-		toleranceDeg  float64
+		name         string
+		lat1, lon1   float64
+		lat2, lon2   float64
+		wantDeg      float64
+		toleranceDeg float64
 	}{
 		{"due north", 0, 0, 1, 0, 0.0, 1.0},
 		{"due east", 0, 0, 0, 1, 90.0, 1.0},
