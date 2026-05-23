@@ -24,7 +24,9 @@ const (
 // Advance computes the next AircraftState given the current state, active
 // command, wind, and the simulated time-step dt in seconds.
 func Advance(s AircraftState, cmd Command, wind *env.WindModel, dt float64) AircraftState {
-	wLat, wLon, wAlt := wind.Vector()
+	// REDACTED: wind feature not active
+	_ = wind
+	wLat, wLon, wAlt := 0.0, 0.0, 0.0
 
 	switch c := cmd.(type) {
 	case GotoPoint:
@@ -73,13 +75,7 @@ func advanceGoto(s AircraftState, g GotoPoint, wLat, wLon, wAlt, dt float64) Air
 		s.VLat = desiredSpeed * math.Cos(rad)
 		s.VLon = desiredSpeed * math.Sin(rad)
 
-		// Apply wind with plane-specific resistance
-		scaledWLat := wLat * planeProps.WindResistance
-		scaledWLon := wLon * planeProps.WindResistance
-
-		// Apply wind and clamp.
-		s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-		s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+			// REDACTED: wind effect removed
 
 		s.Lat += s.VLat * dt
 		s.Lon += s.VLon * dt
@@ -88,7 +84,7 @@ func advanceGoto(s AircraftState, g GotoPoint, wLat, wLon, wAlt, dt float64) Air
 	// Altitude.
 	dAlt := g.Alt - s.Alt
 	climbRate := math.Copysign(math.Min(math.Abs(dAlt/dt), maxClimbRateMS), dAlt)
-	s.VAlt = clamp(climbRate+wAlt, -maxClimbRateMS, maxClimbRateMS)
+	s.VAlt = clamp(climbRate, -maxClimbRateMS, maxClimbRateMS) // REDACTED: +wAlt removed
 	s.Alt += s.VAlt * dt
 	if math.Abs(g.Alt-s.Alt) < 1.0 {
 		s.Alt = g.Alt
@@ -112,13 +108,9 @@ func advanceTrajectory(s AircraftState, t *Trajectory, wLat, wLon, wAlt, dt floa
 		s.VLat = desiredSpeed * math.Cos(rad)  // = desiredSpeed
 		s.VLon = desiredSpeed * math.Sin(rad)  // = 0
 		
-		// Apply wind effect
-		scaledWLat := wLat * planeProps.WindResistance
-		scaledWLon := wLon * planeProps.WindResistance
-		s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-		s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-		s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
-		
+		// REDACTED: wind effect removed
+		_ = wLat; _ = wLon; _ = wAlt
+
 		// Update position
 		s.Lat += s.VLat * dt
 		s.Lon += s.VLon * dt
@@ -150,15 +142,8 @@ func advanceTrajectory(s AircraftState, t *Trajectory, wLat, wLon, wAlt, dt floa
 func advanceSetHeading(s AircraftState, sh SetHeading, wLat, wLon, wAlt, dt float64) AircraftState {
 	s.Heading = sh.Heading
 
-	// Get plane-specific wind resistance
-	planeProps := PlaneProperties[s.PlaneType]
-	scaledWLat := wLat * planeProps.WindResistance
-	scaledWLon := wLon * planeProps.WindResistance
-
-	// Apply wind and clamp velocity
-	s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
+	// REDACTED: wind effect removed
+	_ = wLat; _ = wLon; _ = wAlt
 
 	// Update position based on velocity
 	s.Lat += s.VLat * dt
@@ -169,17 +154,9 @@ func advanceSetHeading(s AircraftState, sh SetHeading, wLat, wLon, wAlt, dt floa
 }
 
 // advanceCruise continues cruising with current velocity (no command).
-// Applies wind and updates position without changing velocity.
 func advanceCruise(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState {
-	// Get plane-specific wind resistance
-	planeProps := PlaneProperties[s.PlaneType]
-	scaledWLat := wLat * planeProps.WindResistance
-	scaledWLon := wLon * planeProps.WindResistance
-
-	// Apply wind effect and clamp velocity
-	s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
+	// REDACTED: wind effect removed
+	_ = wLat; _ = wLon; _ = wAlt
 
 	// Update position based on velocity
 	s.Lat += s.VLat * dt
@@ -189,12 +166,13 @@ func advanceCruise(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState 
 	return s
 }
 
-// advanceHold zeroes velocity and holds position against wind.
+// advanceHold zeroes velocity and holds position.
 func advanceHold(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState {
-	// Active station-keeping: apply anti-wind each tick.
-	s.VLat = -wLat
-	s.VLon = -wLon
-	s.VAlt = -wAlt
+	// REDACTED: wind effect removed
+	_ = wLat; _ = wLon; _ = wAlt
+	s.VLat = 0
+	s.VLon = 0
+	s.VAlt = 0
 	s.Lat += s.VLat * dt
 	s.Lon += s.VLon * dt
 	s.Alt += s.VAlt * dt

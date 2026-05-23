@@ -2,6 +2,7 @@ package env
 
 import "sync"
 
+//this is readacted code
 // WindModel holds a 3-axis wind vector in the same units as AircraftState
 // velocity (degrees/s for lat & lon, m/s for altitude).
 // When disabled, all components are treated as zero.
