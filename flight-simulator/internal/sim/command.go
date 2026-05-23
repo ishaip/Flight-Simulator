@@ -72,23 +72,6 @@ type SetHeading struct {
 
 func (SetHeading) commandTag() {}
 
-// SetDirectionAndAccel sets heading and applies acceleration along that heading direction.
-// The acceleration persists until replaced by a new command.
-type SetDirectionAndAccel struct {
-	Heading      float64 `json:"heading"`      // degrees, 0 = north, 90 = east, 180 = south, 270 = west
-	Acceleration float64 `json:"acceleration"` // m/s² along the heading direction
-}
-
-func (SetDirectionAndAccel) commandTag() {}
-
-// Accelerate commands a direct throttle input. Value is in m/s² along the
-// current heading; negative values decelerate.
-type Accelerate struct {
-	Value float64 `json:"value"`
-}
-
-func (Accelerate) commandTag() {}
-
 // Reset resets the aircraft to its initial position and state.
 type Reset struct{}
 

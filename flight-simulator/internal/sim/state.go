@@ -5,6 +5,31 @@ import (
 	"time"
 )
 
+// PlaneType identifies the aircraft type.
+type PlaneType string
+
+const (
+	PlaneCessna   PlaneType = "cessna"
+	PlanePiper    PlaneType = "piper"
+	PlaneCirrus   PlaneType = "cirrus"
+	PlaneBonanza  PlaneType = "bonanza"
+	PlaneBaron    PlaneType = "baron"
+	PlaneFighter  PlaneType = "fighter"
+)
+
+// PlaneProperties defines performance characteristics for each aircraft type.
+var PlaneProperties = map[PlaneType]struct {
+	CruiseSpeedMS    float64
+	WindResistance   float64 // 0.0 = not affected by wind, 1.0 = full wind effect
+}{
+	PlaneCessna:  {CruiseSpeedMS: 80.0, WindResistance: 1.0},
+	PlanePiper:   {CruiseSpeedMS: 82.0, WindResistance: 0.9},
+	PlaneCirrus:  {CruiseSpeedMS: 120.0, WindResistance: 0.8},
+	PlaneBonanza: {CruiseSpeedMS: 130.0, WindResistance: 0.85},
+	PlaneBaron:   {CruiseSpeedMS: 160.0, WindResistance: 0.7},
+	PlaneFighter: {CruiseSpeedMS: 600.0, WindResistance: 0.2},
+}
+
 // AircraftState is the full snapshot of the aircraft at one simulation step.
 // Velocity components are in degrees/second for lat & lon, and meters/second
 // for altitude, which keeps the stats display natural.
@@ -21,6 +46,9 @@ type AircraftState struct {
 
 	// Heading in degrees, 0 = North, clockwise.
 	Heading float64 `json:"heading"`
+
+	// PlaneType identifies the aircraft type.
+	PlaneType PlaneType `json:"planeType"`
 
 	// SimTime is the simulated timestamp for this state.
 	SimTime time.Time `json:"simTime"`

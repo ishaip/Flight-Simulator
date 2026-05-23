@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"flight-simulator/internal/sim"
 )
 
 // streamHandler pushes the aircraft state as Server-Sent Events to a connected client.
@@ -15,7 +17,8 @@ import (
 func (d *deps) handleStream(w http.ResponseWriter, r *http.Request) {
 	// Get or create session
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	// Verify the client supports SSE.

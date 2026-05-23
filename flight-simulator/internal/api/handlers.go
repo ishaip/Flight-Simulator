@@ -28,6 +28,11 @@ func getSessionID(r *http.Request) string {
 	return ""
 }
 
+// getPlaneType extracts the plane type from the request (query parameter).
+func getPlaneType(r *http.Request) string {
+	return r.URL.Query().Get("planeType")
+}
+
 // setSessionIDCookie sets the session ID as a cookie and query parameter hint.
 func setSessionIDCookie(w http.ResponseWriter, sessionID string) {
 	http.SetCookie(w, &http.Cookie{
@@ -59,7 +64,8 @@ func decodeBody(w http.ResponseWriter, r *http.Request, v any) bool {
 
 func (d *deps) handleGoto(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	var body struct {
@@ -81,7 +87,8 @@ func (d *deps) handleGoto(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleTrajectory(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	var body struct {
@@ -103,7 +110,8 @@ func (d *deps) handleTrajectory(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleStop(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	sess.Logger.Trace("command/stop")
@@ -112,42 +120,12 @@ func (d *deps) handleStop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "stopped"})
 }
 
-// ---- /command/hold ----
-
-func (d *deps) handleHold(w http.ResponseWriter, r *http.Request) {
-	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
-	setSessionIDCookie(w, sess.ID)
-
-	sess.Actor.SendCommand(sim.Hold{})
-	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
-}
-
-// ---- /command/set-direction-and-accel ----
-
-func (d *deps) handleSetDirectionAndAccel(w http.ResponseWriter, r *http.Request) {
-	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
-	setSessionIDCookie(w, sess.ID)
-
-	var body struct {
-		Heading      float64 `json:"heading"`      
-		Acceleration float64 `json:"acceleration"`
-	}
-	if !decodeBody(w, r, &body) {
-		return
-	}
-	sess.Logger.Trace(fmt.Sprintf("command/set-direction-and-accel: heading=%.2f accel=%.2f", body.Heading, body.Acceleration))
-	sess.Logger.Info(fmt.Sprintf("User command: heading %.2f° with acceleration %.2f m/s²", body.Heading, body.Acceleration))
-	sess.Actor.SendCommand(sim.SetDirectionAndAccel{Heading: body.Heading, Acceleration: body.Acceleration})
-	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
-}
-
 // ---- /command/set-heading ----
 
 func (d *deps) handleSetHeading(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	var body struct {
@@ -156,28 +134,21 @@ func (d *deps) handleSetHeading(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
-	sess.Logger.Trace(fmt.Sprintf("command/set-heading: heading=%.2f°", body.Heading))
-	sess.Logger.Info(fmt.Sprintf("User command: set heading to %.2f°", body.Heading))
+	sess.Logger.Trace(fmt.Sprintf("command/set-heading: heading=%.1f", body.Heading))
+	sess.Logger.Info(fmt.Sprintf("User command: set heading to %.1f degrees", body.Heading))
 	sess.Actor.SendCommand(sim.SetHeading{Heading: body.Heading})
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
-// ---- /command/accelerate ----
+// ---- /command/hold ----
 
-func (d *deps) handleAccelerate(w http.ResponseWriter, r *http.Request) {
+func (d *deps) handleHold(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
-	var body struct {
-		Value float64 `json:"value"`
-	}
-	if !decodeBody(w, r, &body) {
-		return
-	}
-	sess.Logger.Trace(fmt.Sprintf("command/accelerate: value=%.2f", body.Value))
-	sess.Logger.Info(fmt.Sprintf("User command: accelerate at %.2f m/s²", body.Value))
-	sess.Actor.SendCommand(sim.Accelerate{Value: body.Value})
+	sess.Actor.SendCommand(sim.Hold{})
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
@@ -185,7 +156,8 @@ func (d *deps) handleAccelerate(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleTraceStart(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	// Stub: full trace spec TBD.
@@ -196,7 +168,8 @@ func (d *deps) handleTraceStart(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleState(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	writeJSON(w, http.StatusOK, sess.Store.Get())
@@ -212,7 +185,8 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handlePause(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	sess.Logger.Trace("sim/pause")
 	sess.Logger.Info("User command: pause simulation")
 	d.bus.Pause()
@@ -223,7 +197,8 @@ func (d *deps) handlePause(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleResume(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	sess.Logger.Trace("sim/resume")
 	sess.Logger.Info("User command: resume simulation")
 	d.bus.Resume()
@@ -234,7 +209,8 @@ func (d *deps) handleResume(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleHz(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 
 	var body struct {
 		Hz float64 `json:"hz"`
@@ -252,7 +228,8 @@ func (d *deps) handleHz(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleSkip(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 
 	var body struct {
 		By string `json:"by"` // e.g. "30s", "5m"
@@ -292,7 +269,8 @@ func (d *deps) handleSkip(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleWind(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	var body struct {
@@ -318,7 +296,8 @@ func (d *deps) handleWind(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleLogInfo(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	var body struct {
@@ -336,7 +315,8 @@ func (d *deps) handleLogInfo(w http.ResponseWriter, r *http.Request) {
 
 func (d *deps) handleLogTrace(w http.ResponseWriter, r *http.Request) {
 	sessionID := getSessionID(r)
-	sess := d.manager.GetOrCreate(sessionID)
+	planeType := sim.PlaneType(getPlaneType(r))
+	sess := d.manager.GetOrCreate(sessionID, planeType)
 	setSessionIDCookie(w, sess.ID)
 
 	var body struct {
@@ -356,9 +336,9 @@ var helpDoc = map[string]any{
 	"endpoints": []map[string]any{
 		{"method": "POST", "path": "/command/goto", "body": map[string]string{"lat": "float", "lon": "float", "alt": "float (m)", "speed": "float m/s (optional)"}, "description": "Fly to a geographic point"},
 		{"method": "POST", "path": "/command/trajectory", "body": map[string]string{"waypoints": "[{lat,lon,alt,speed?}]", "loop": "bool (optional)"}, "description": "Follow a sequence of waypoints"},
+		{"method": "POST", "path": "/command/set-heading", "body": map[string]string{"heading": "float degrees"}, "description": "Set heading without changing speed"},
 		{"method": "POST", "path": "/command/stop", "description": "Stop movement immediately"},
 		{"method": "POST", "path": "/command/hold", "description": "Station-keep at current position (counters wind)"},
-		{"method": "POST", "path": "/command/accelerate", "body": map[string]string{"value": "float m/s² (negative = decelerate)"}, "description": "Apply throttle along current heading"},
 		{"method": "POST", "path": "/command/trace/start", "description": "Start flight-path trace (stub)"},
 		{"method": "GET", "path": "/state", "description": "Current aircraft state snapshot"},
 		{"method": "GET", "path": "/stream", "description": "SSE stream of aircraft state (text/event-stream)"},

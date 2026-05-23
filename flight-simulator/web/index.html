@@ -423,14 +423,6 @@
     </div>
 
     <div>
-      <div class="section-title">Set Direction & Acceleration</div>
-      <div class="input-row"><label>Heading °</label><input type="number" id="setdir-heading" value="0" min="0" max="359" step="1" style="width:100px"/></div>
-      <div class="input-row" style="margin-top:3px"><label>Elevation m</label><input type="number" id="setdir-alt" value="0" step="50" style="width:100px"/></div>
-      <div class="input-row" style="margin-top:3px"><label>Acceleration m/s²</label><input type="number" id="acc-val" value="5" step="0.5" style="width:100px"/></div>
-      <button class="btn primary" style="margin-top:4px" onclick="setDirectionAndAccel()">Set</button>
-    </div>
-
-    <div>
       <div class="section-title">Wind</div>
       <div class="toggle-wrap" style="margin-bottom:4px">
         <label for="wind-toggle">Enable Wind</label>
@@ -491,6 +483,39 @@
 
     <div>
       <div class="section-title">Commands</div>
+      
+      <!-- Go-to-Point -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px; color:#999; margin-bottom:4px">Go-to-Point</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:4px">
+          <div><label style="font-size:11px">Lat</label><input type="number" id="goto-lat" placeholder="32.0" step="0.000001"></div>
+          <div><label style="font-size:11px">Lon</label><input type="number" id="goto-lon" placeholder="34.7" step="0.000001"></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:4px">
+          <div><label style="font-size:11px">Alt (m)</label><input type="number" id="goto-alt" placeholder="1000" step="10"></div>
+          <div><label style="font-size:11px">Speed (m/s)</label><input type="number" id="goto-speed" placeholder="80" step="1"></div>
+        </div>
+        <button class="btn" style="width:100%; margin-bottom:4px" onclick="sendGoto()">Send Go-to</button>
+      </div>
+
+      <!-- Trajectory -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px; color:#999; margin-bottom:4px">Trajectory (Waypoints)</div>
+        <textarea id="traj-input" placeholder="[{&#34;lat&#34;:32.0,&#34;lon&#34;:34.7,&#34;alt&#34;:1000,&#34;speed&#34;:80}, ...]" style="width:100%; height:60px; font-size:10px; padding:4px; border:1px solid #666; background:#1a1a1a; color:#0f0; font-family:monospace"></textarea>
+        <button class="btn" style="width:100%; margin-bottom:4px" onclick="sendTrajectory()">Send Trajectory</button>
+      </div>
+
+      <!-- Set Heading -->
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px; color:#999; margin-bottom:4px">Set Heading</div>
+        <input type="number" id="heading-input" placeholder="0 (degrees)" step="1" style="width:100%; margin-bottom:4px">
+        <button class="btn" style="width:100%; margin-bottom:4px" onclick="sendSetHeading()">Set Heading</button>
+      </div>
+
+      <!-- Hold Position -->
+      <button class="btn" style="margin-bottom:4px" onclick="sendHold()">Hold Position</button>
+      
+      <!-- Stop -->
       <button class="btn danger" style="margin-bottom:4px" onclick="sendStop()">Stop</button>
     </div>
   </div>
@@ -508,12 +533,12 @@ const TEL_AVIV_LON = 34.7818;
 const START_ALT = 400;
 
 const planeData = {
-  cessna:   { icon: '🛩️', name: 'Cessna 172 Skyhawk', desc: 'Stable, reliable single-engine aircraft. Perfect for learning.', maxAccel: 3 },
-  piper:    { icon: '✈️', name: 'Piper PA-28 Cherokee', desc: 'Nimble general-aviation workhorse.', maxAccel: 4 },
-  cirrus:   { icon: '✈️', name: 'Cirrus SR22', desc: 'High-performance with CAPS emergency parachute.', maxAccel: 5 },
-  bonanza:  { icon: '✈️', name: 'Beechcraft Bonanza', desc: 'Comfortable and capable mid-range cruiser.', maxAccel: 5 },
-  baron:    { icon: '🛩️', name: 'Beechcraft Baron', desc: 'Twin-engine power for serious missions.', maxAccel: 6 },
-  fighter:  { icon: '🎖️', name: 'F-16 Fighting Falcon', desc: 'Supersonic military fighter. Extreme performance.', maxAccel: 12 },
+  cessna:   { icon: '🛩️', name: 'Cessna 172 Skyhawk', desc: 'Stable, reliable single-engine aircraft. Perfect for learning.' },
+  piper:    { icon: '✈️', name: 'Piper PA-28 Cherokee', desc: 'Nimble general-aviation workhorse.' },
+  cirrus:   { icon: '✈️', name: 'Cirrus SR22', desc: 'High-performance with CAPS emergency parachute.' },
+  bonanza:  { icon: '✈️', name: 'Beechcraft Bonanza', desc: 'Comfortable and capable mid-range cruiser.' },
+  baron:    { icon: '🛩️', name: 'Beechcraft Baron', desc: 'Twin-engine power for serious missions.' },
+  fighter:  { icon: '🎖️', name: 'F-16 Fighting Falcon', desc: 'Supersonic military fighter. Extreme performance.' },
 };
 
 let isPaused = false, lastState = null, windEnabled = false, simStarted = false, selectedPlane = 'cessna';
@@ -534,13 +559,7 @@ function updatePlanePreview() {
   const p = planeData[selectedPlane];
   document.getElementById('plane-icon-preview').textContent = p.icon;
   document.getElementById('plane-name').textContent = p.name;
-  document.getElementById('plane-desc').textContent = p.desc + ` (Max Accel: ${p.maxAccel} m/s²)`;
-  // Update acceleration input default and max
-  const accelInput = document.getElementById('acc-val');
-  if (accelInput) {
-    accelInput.value = p.maxAccel;
-    accelInput.max = p.maxAccel;
-  }
+  document.getElementById('plane-desc').textContent = p.desc;
 }
 
 function startSimulation() {
@@ -548,13 +567,6 @@ function startSimulation() {
   document.getElementById('menu-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   simStarted = true;
-  // Set acceleration based on selected plane
-  const p = planeData[selectedPlane];
-  const accelInput = document.getElementById('acc-val');
-  if (accelInput) {
-    accelInput.value = p.maxAccel;
-    accelInput.max = p.maxAccel;
-  }
   initMap();
   connectSSE();
   loadInitialState();
@@ -562,7 +574,12 @@ function startSimulation() {
 
 async function loadInitialState() {
   try {
-    const url = sessionID ? `/state?sid=${encodeURIComponent(sessionID)}` : '/state';
+    let url = '/state';
+    const params = [];
+    if (sessionID) params.push(`sid=${encodeURIComponent(sessionID)}`);
+    if (selectedPlane) params.push(`planeType=${encodeURIComponent(selectedPlane)}`);
+    if (params.length) url += '?' + params.join('&');
+    
     const r = await fetch(url);
     if (r.ok) {
       const st = await r.json();
@@ -606,7 +623,9 @@ function rotatePlane(headingDeg) {
 function connectSSE() {
   if (sse) { sse.close(); }
   if (!simStarted || !sessionID) return;
-  sse = new EventSource(`/stream?sid=${encodeURIComponent(sessionID)}`);
+  const params = [`sid=${encodeURIComponent(sessionID)}`];
+  if (selectedPlane) params.push(`planeType=${encodeURIComponent(selectedPlane)}`);
+  sse = new EventSource(`/stream?${params.join('&')}`);
   sse.onopen = () => { setStatus(true); log('SSE connected', 'trace'); };
   sse.onmessage = (e) => {
     try {
@@ -663,7 +682,12 @@ async function refreshWindDisplay() {
 
 async function post(path, body) {
   try {
-    const url = sessionID ? `${path}?sid=${encodeURIComponent(sessionID)}` : path;
+    let url = path;
+    const params = [];
+    if (sessionID) params.push(`sid=${encodeURIComponent(sessionID)}`);
+    if (selectedPlane) params.push(`planeType=${encodeURIComponent(selectedPlane)}`);
+    if (params.length) url += '?' + params.join('&');
+    
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -702,11 +726,6 @@ async function applyHz() {
   await post('/sim/hz', { hz });
 }
 
-async function applyAccel() {
-  const value = parseFloat(document.getElementById('acc-val').value);
-  await post('/command/accelerate', { value });
-}
-
 async function applyWind() {
   const enabled = document.getElementById('wind-toggle').checked;
   const vLat = parseFloat(document.getElementById('w-lat').value) || 0;
@@ -735,12 +754,52 @@ async function applyTrace() {
   }
 }
 
-async function setDirectionAndAccel() {
-  const heading = parseFloat(document.getElementById('setdir-heading').value);
-  const accelValue = parseFloat(document.getElementById('acc-val').value);
-  
-  // Send a single combined command
-  await post('/command/set-direction-and-accel', { heading, acceleration: accelValue });
+async function sendGoto() {
+  const lat = parseFloat(document.getElementById('goto-lat').value);
+  const lon = parseFloat(document.getElementById('goto-lon').value);
+  const alt = parseFloat(document.getElementById('goto-alt').value);
+  const speed = parseFloat(document.getElementById('goto-speed').value);
+
+  if (isNaN(lat) || isNaN(lon) || isNaN(alt) || isNaN(speed)) {
+    log('Invalid go-to parameters', 'error');
+    return;
+  }
+
+  await post('/command/goto', { lat, lon, alt, speed });
+  log(`Go-to command sent: (${lat}, ${lon}) at ${alt}m, ${speed}m/s`, 'info');
+}
+
+async function sendTrajectory() {
+  const input = document.getElementById('traj-input').value.trim();
+  if (!input) {
+    log('Trajectory input is empty', 'error');
+    return;
+  }
+
+  try {
+    const waypoints = JSON.parse(input);
+    if (!Array.isArray(waypoints)) throw new Error('Must be an array');
+    await post('/command/trajectory', { waypoints });
+    log(`Trajectory sent with ${waypoints.length} waypoint(s)`, 'info');
+  } catch (e) {
+    log(`Invalid trajectory JSON: ${e.message}`, 'error');
+  }
+}
+
+async function sendSetHeading() {
+  const heading = parseFloat(document.getElementById('heading-input').value);
+  if (isNaN(heading)) {
+    log('Invalid heading value', 'error');
+    return;
+  }
+
+  await post('/command/set-heading', { heading });
+  log(`Set heading command sent: ${heading}°`, 'info');
+}
+
+async function sendHold() {
+  await post('/command/hold', {});
+  log('Hold position command sent', 'info');
 }
 
 async function sendStop() {

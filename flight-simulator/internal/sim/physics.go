@@ -7,25 +7,18 @@ import (
 )
 
 const (
-	// maxTurnRateDegPerSec is the aircraft's maximum yaw rate.
-	maxTurnRateDegPerSec = 3.0
-
-	// maxSpeedDegPerSec is the maximum horizontal ground speed in degrees/s
-	// (≈ 111 km per degree lat, so 0.001 °/s ≈ 0.11 m/s).
-	// We default to about 250 m/s ≈ ~0.00225 °/s but cap at a visible rate.
-	maxSpeedDegPerSec = 0.005
-
 	// maxClimbRateMS is the maximum vertical speed in m/s.
 	maxClimbRateMS = 20.0
 
 	// arrivalToleranceDeg is the arrival detection radius in degrees.
 	arrivalToleranceDeg = 0.0001 // ~11 m
 
-	// defaultSpeedDegPerSec is used when a GotoPoint.Speed is zero.
-	defaultSpeedDegPerSec = 0.001 // ~111 m/s ground speed
-
 	// metersPerDegree is a rough conversion at mid-latitudes.
 	metersPerDegree = 111_320.0
+
+	// maxSpeedDegPerSec is the maximum horizontal ground speed in degrees/s
+	// (clamping limit to prevent numerical issues)
+	maxSpeedDegPerSec = 0.01
 )
 
 // Advance computes the next AircraftState given the current state, active
@@ -40,10 +33,6 @@ func Advance(s AircraftState, cmd Command, wind *env.WindModel, dt float64) Airc
 		return advanceTrajectory(s, c, wLat, wLon, wAlt, dt)
 	case SetHeading:
 		return advanceSetHeading(s, c, wLat, wLon, wAlt, dt)
-	case SetDirectionAndAccel:
-		return advanceSetDirectionAndAccel(s, c, wLat, wLon, wAlt, dt)
-	case Accelerate:
-		return advanceAccelerate(s, c, wLat, wLon, wAlt, dt)
 	case Hold:
 		return advanceHold(s, wLat, wLon, wAlt, dt)
 	case Stop:
@@ -61,14 +50,15 @@ func Advance(s AircraftState, cmd Command, wind *env.WindModel, dt float64) Airc
 
 // advanceGoto steers toward the target point.
 func advanceGoto(s AircraftState, g GotoPoint, wLat, wLon, wAlt, dt float64) AircraftState {
+	// Get plane-specific cruise speed
+	planeProps := PlaneProperties[s.PlaneType]
 	desiredSpeed := g.Speed / metersPerDegree // convert m/s → °/s for horizontal
 	if desiredSpeed <= 0 {
-		desiredSpeed = defaultSpeedDegPerSec
+		desiredSpeed = planeProps.CruiseSpeedMS / metersPerDegree
 	}
-	desiredSpeed = math.Min(desiredSpeed, maxSpeedDegPerSec)
 
 	bearing := bearingDeg(s.Lat, s.Lon, g.Lat, g.Lon)
-	s.Heading = turnToward(s.Heading, bearing, maxTurnRateDegPerSec*dt)
+	s.Heading = bearing // Set heading directly (instant turn, no rate limit)
 
 	dLat := g.Lat - s.Lat
 	dLon := g.Lon - s.Lon
@@ -83,9 +73,13 @@ func advanceGoto(s AircraftState, g GotoPoint, wLat, wLon, wAlt, dt float64) Air
 		s.VLat = desiredSpeed * math.Cos(rad)
 		s.VLon = desiredSpeed * math.Sin(rad)
 
+		// Apply wind with plane-specific resistance
+		scaledWLat := wLat * planeProps.WindResistance
+		scaledWLon := wLon * planeProps.WindResistance
+
 		// Apply wind and clamp.
-		s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-		s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+		s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+		s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
 
 		s.Lat += s.VLat * dt
 		s.Lon += s.VLon * dt
@@ -125,60 +119,24 @@ func advanceTrajectory(s AircraftState, t *Trajectory, wLat, wLon, wAlt, dt floa
 	return next
 }
 
-// advanceSetDirectionAndAccel sets heading and applies acceleration along it.
-func advanceSetDirectionAndAccel(s AircraftState, sd SetDirectionAndAccel, wLat, wLon, wAlt, dt float64) AircraftState {
-	s.Heading = sd.Heading
-
-	// Apply acceleration along the heading direction
-	rad := sd.Heading * math.Pi / 180
-	accDeg := sd.Acceleration / metersPerDegree // m/s² → °/s²
-
-	s.VLat += accDeg * math.Cos(rad) * dt
-	s.VLon += accDeg * math.Sin(rad) * dt
-
-	// Apply wind and clamp velocity
-	s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
-
-	// Update position based on velocity
-	s.Lat += s.VLat * dt
-	s.Lon += s.VLon * dt
-	s.Alt += s.VAlt * dt
-
-	return s
-}
-
 // advanceSetHeading sets the aircraft heading without affecting velocity.
 func advanceSetHeading(s AircraftState, sh SetHeading, wLat, wLon, wAlt, dt float64) AircraftState {
 	s.Heading = sh.Heading
 
+	// Get plane-specific wind resistance
+	planeProps := PlaneProperties[s.PlaneType]
+	scaledWLat := wLat * planeProps.WindResistance
+	scaledWLon := wLon * planeProps.WindResistance
+
 	// Apply wind and clamp velocity
-	s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
 	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
 
 	// Update position based on velocity
 	s.Lat += s.VLat * dt
 	s.Lon += s.VLon * dt
 	s.Alt += s.VAlt * dt
-
-	return s
-}
-
-// advanceAccelerate applies the throttle input along the current heading.
-func advanceAccelerate(s AircraftState, a Accelerate, wLat, wLon, wAlt, dt float64) AircraftState {
-	rad := s.Heading * math.Pi / 180
-	accDeg := a.Value / metersPerDegree // m/s² → °/s²
-
-	s.VLat += accDeg * math.Cos(rad) * dt
-	s.VLon += accDeg * math.Sin(rad) * dt
-
-	s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-
-	s.Lat += s.VLat * dt
-	s.Lon += s.VLon * dt
 
 	return s
 }
@@ -186,9 +144,14 @@ func advanceAccelerate(s AircraftState, a Accelerate, wLat, wLon, wAlt, dt float
 // advanceCruise continues cruising with current velocity (no command).
 // Applies wind and updates position without changing velocity.
 func advanceCruise(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState {
+	// Get plane-specific wind resistance
+	planeProps := PlaneProperties[s.PlaneType]
+	scaledWLat := wLat * planeProps.WindResistance
+	scaledWLon := wLon * planeProps.WindResistance
+
 	// Apply wind effect and clamp velocity
-	s.VLat = clamp(s.VLat+wLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
-	s.VLon = clamp(s.VLon+wLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+	s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
 	s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
 
 	// Update position based on velocity
@@ -229,15 +192,6 @@ func bearingDeg(lat1, lon1, lat2, lon2 float64) float64 {
 	y := math.Sin(dLon) * math.Cos(la2)
 	x := math.Cos(la1)*math.Sin(la2) - math.Sin(la1)*math.Cos(la2)*math.Cos(dLon)
 	return math.Mod(math.Atan2(y, x)*180/math.Pi+360, 360)
-}
-
-// turnToward rotates current heading toward target by at most maxDelta degrees.
-func turnToward(current, target, maxDelta float64) float64 {
-	diff := math.Mod(target-current+540, 360) - 180 // signed diff in (-180,180]
-	if math.Abs(diff) <= maxDelta {
-		return target
-	}
-	return math.Mod(current+math.Copysign(maxDelta, diff)+360, 360)
 }
 
 // clamp constrains v to [lo, hi].

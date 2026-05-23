@@ -15,6 +15,7 @@ import (
 // Session represents a single user's flight simulator instance.
 type Session struct {
 	ID          string
+	PlaneType   sim.PlaneType
 	Store       *sim.StateStore
 	Broadcaster *sim.StateBroadcaster
 	Actor       *sim.SimulationActor
@@ -39,9 +40,13 @@ func New(bus *clock.ClockBus) *Manager {
 }
 
 // GetOrCreate returns an existing session or creates a new one.
-func (m *Manager) GetOrCreate(sessionID string) *Session {
+// If planeType is empty, defaults to Cessna.
+func (m *Manager) GetOrCreate(sessionID string, planeType sim.PlaneType) *Session {
 	if sessionID == "" {
 		sessionID = generateID()
+	}
+	if planeType == "" {
+		planeType = sim.PlaneCessna
 	}
 
 	m.mu.RLock()
@@ -66,16 +71,20 @@ func (m *Manager) GetOrCreate(sessionID string) *Session {
 		logger = &log.Logger{} // Fallback (won't work well, but prevents panic)
 	}
 
-	// Initial state: Tel Aviv, 400m, 100 m/s heading north
+	// Initial state: Tel Aviv, 400m, starting speed based on plane type
+	planeProps := sim.PlaneProperties[planeType]
+	initialSpeedDegPerSec := planeProps.CruiseSpeedMS / 111_320.0
+	
 	initial := sim.AircraftState{
-		Lat:     32.0853,
-		Lon:     34.7818,
-		Alt:     400,
-		Heading: 0,
-		VLat:    0.0009, // ~100 m/s north (0.0009 deg/s * 111111 m/deg ≈ 100 m/s)
-		VLon:    0,      // no east-west velocity
-		VAlt:    0,      // no vertical velocity
-		SimTime: time.Now().UTC(),
+		Lat:       32.0853,
+		Lon:       34.7818,
+		Alt:       400,
+		Heading:   0,
+		PlaneType: planeType,
+		VLat:      initialSpeedDegPerSec,           // Initial heading north
+		VLon:      0,                               // no east-west velocity
+		VAlt:      0,                               // no vertical velocity
+		SimTime:   time.Now().UTC(),
 	}
 
 	store := &sim.StateStore{}
@@ -86,6 +95,7 @@ func (m *Manager) GetOrCreate(sessionID string) *Session {
 
 	session := &Session{
 		ID:          sessionID,
+		PlaneType:   planeType,
 		Store:       store,
 		Broadcaster: broadcaster,
 		Actor:       actor,
