@@ -1,22 +1,26 @@
-# Backup files
+# ── Build outputs ─────────────────────────────────────────────────────────────
+bin/
+*.exe
 *.exe~
 *.swp
 *.swo
 *~
 
-# Build artifacts
-simulator.exe
-*.o
-*.a
-
-# Go
-go.sum
-
-# IDE
-.vscode/
-.idea/
-*.code-workspace
-
-# Logging
+# ── Simulation outputs ────────────────────────────────────────────────────────
 outputs/
+backend/outputs/*.json
+backend/outputs/*.csv
+backend/outputs/*.log
+
+# ── Environment ───────────────────────────────────────────────────────────────
+.env
+
+# ── Editor / OS ───────────────────────────────────────────────────────────────
+.idea/
+*.DS_Store
+Thumbs.db
+
+# ── Go ────────────────────────────────────────────────────────────────────────
+go.sum
+backend/vendor/
 
