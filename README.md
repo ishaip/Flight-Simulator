@@ -124,7 +124,6 @@ Key endpoints:
 | POST   | `/sim/resume`          | Resume simulation clock                  |
 | POST   | `/sim/hz`              | Set tick rate (10–60 Hz)                 |
 | POST   | `/sim/skip`            | Fast-forward simulated time              |
-| POST   | `/wind`                | Set wind vector                          |
 | GET    | `/health`              | Health check                             |
 
 ---
