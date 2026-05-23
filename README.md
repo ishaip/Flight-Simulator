@@ -63,6 +63,8 @@ cd Flight-Simulator/backend
 go run ./cmd/simulator
 ```
 
+> **Windows (PowerShell):** `make` is not available by default. Use the `go run` command above directly — it works on all platforms.
+
 Then open `http://localhost:8080` in your browser.
 
 ---
