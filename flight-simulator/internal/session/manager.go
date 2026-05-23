@@ -14,14 +14,15 @@ import (
 
 // Session represents a single user's flight simulator instance.
 type Session struct {
-	ID          string
-	PlaneType   sim.PlaneType
-	Store       *sim.StateStore
-	Broadcaster *sim.StateBroadcaster
-	Actor       *sim.SimulationActor
-	Wind        *env.WindModel
-	Logger      *log.Logger
-	CreatedAt   time.Time
+	ID            string
+	PlaneType     sim.PlaneType
+	Store         *sim.StateStore
+	Broadcaster   *sim.StateBroadcaster
+	LogBroadcaster *log.LogBroadcaster
+	Actor         *sim.SimulationActor
+	Wind          *env.WindModel
+	Logger        *log.Logger
+	CreatedAt     time.Time
 }
 
 // Manager manages all active sessions.
@@ -71,19 +72,23 @@ func (m *Manager) GetOrCreate(sessionID string, planeType sim.PlaneType) *Sessio
 		logger = &log.Logger{} // Fallback (won't work well, but prevents panic)
 	}
 
+	// Create log broadcaster
+	logBroadcaster := &log.LogBroadcaster{}
+	logger.SetLogBroadcaster(logBroadcaster)
+
 	// Initial state: Tel Aviv, 400m, starting speed based on plane type
 	planeProps := sim.PlaneProperties[planeType]
 	initialSpeedDegPerSec := planeProps.CruiseSpeedMS / 111_320.0
-	
+
 	initial := sim.AircraftState{
 		Lat:       32.0853,
 		Lon:       34.7818,
 		Alt:       400,
 		Heading:   0,
 		PlaneType: planeType,
-		VLat:      initialSpeedDegPerSec,           // Initial heading north
-		VLon:      0,                               // no east-west velocity
-		VAlt:      0,                               // no vertical velocity
+		VLat:      initialSpeedDegPerSec, // Initial heading north
+		VLon:      0,                     // no east-west velocity
+		VAlt:      0,                     // no vertical velocity
 		SimTime:   time.Now().UTC(),
 	}
 
@@ -94,14 +99,15 @@ func (m *Manager) GetOrCreate(sessionID string, planeType sim.PlaneType) *Sessio
 	actor := sim.NewActor(tickCh, store, broadcaster, wind, initial, logger)
 
 	session := &Session{
-		ID:          sessionID,
-		PlaneType:   planeType,
-		Store:       store,
-		Broadcaster: broadcaster,
-		Actor:       actor,
-		Wind:        wind,
-		Logger:      logger,
-		CreatedAt:   time.Now(),
+		ID:            sessionID,
+		PlaneType:     planeType,
+		Store:         store,
+		Broadcaster:   broadcaster,
+		LogBroadcaster: logBroadcaster,
+		Actor:         actor,
+		Wind:          wind,
+		Logger:        logger,
+		CreatedAt:     time.Now(),
 	}
 
 	m.sessions[sessionID] = session

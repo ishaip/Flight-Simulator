@@ -109,10 +109,15 @@ func advanceTrajectory(s AircraftState, t *Trajectory, wLat, wLon, wAlt, dt floa
 	next := advanceGoto(s, g, wLat, wLon, wAlt, dt)
 
 	// Check arrival: if velocity went to zero at the target, advance waypoint.
-	if next.VLat == 0 && next.VLon == 0 {
+	// Only advance if both horizontal and vertical distances are small.
+	if next.VLat == 0 && next.VLon == 0 && next.VAlt == 0 {
 		dLat := next.Lat - wp.Lat
 		dLon := next.Lon - wp.Lon
-		if math.Sqrt(dLat*dLat+dLon*dLon) < arrivalToleranceDeg {
+		dAlt := next.Alt - wp.Alt
+		horizDist := math.Sqrt(dLat*dLat + dLon*dLon)
+		
+		// Arrival if both horizontal (< tolerance) and vertical (< 1m) distances are met
+		if horizDist < arrivalToleranceDeg && math.Abs(dAlt) < 1.0 {
 			t.Advance()
 		}
 	}

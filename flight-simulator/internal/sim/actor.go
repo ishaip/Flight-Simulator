@@ -99,7 +99,12 @@ func (a *SimulationActor) Run() {
 
 		// --- 2. Check for crash ---
 		if a.checkCrash(state) {
-			a.logger.Warning("Aircraft altitude critical: crash imminent!")
+			a.logger.Error("CRASH: Aircraft altitude reached 0 - plane crashed!")
+			state.Alt = 0
+			state.VLat = 0
+			state.VLon = 0
+			state.VAlt = 0
+			activeCmd = Stop{}
 		}
 
 		// --- 2.5. Check for boundary violation ---
@@ -131,9 +136,9 @@ func (a *SimulationActor) Run() {
 	}
 }
 
-// checkCrash returns true if the aircraft is about to crash (altitude near ground).
+// checkCrash returns true if the aircraft has crashed (altitude reached ground).
 func (a *SimulationActor) checkCrash(state AircraftState) bool {
-	return state.Alt < 50 // Less than 50m to ground
+	return state.Alt <= 0 // Altitude at or below ground level
 }
 
 // checkBoundaryViolation returns true if the aircraft is leaving map boundaries at high speed.

@@ -36,6 +36,9 @@ func (d *deps) handleStream(w http.ResponseWriter, r *http.Request) {
 	ch := sess.Broadcaster.Subscribe()
 	defer sess.Broadcaster.Unsubscribe(ch)
 
+	logCh := sess.LogBroadcaster.Subscribe()
+	defer sess.LogBroadcaster.Unsubscribe(logCh)
+
 	sess.Logger.Trace("SSE client connected")
 
 	for {
@@ -49,6 +52,17 @@ func (d *deps) handleStream(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+
+		case logEntry, open := <-logCh:
+			if !open {
+				return
+			}
+			logData, err := json.Marshal(logEntry)
+			if err != nil {
+				continue
+			}
+			fmt.Fprintf(w, "event: log\ndata: %s\n\n", logData)
 			flusher.Flush()
 
 		case <-r.Context().Done():

@@ -18,19 +18,66 @@ const (
 )
 
 type Logger struct {
-	sessionID    string
-	file         *os.File
-	mu           sync.Mutex
-	logChan      chan logEntry
-	done         chan struct{}
-	infoEnabled  bool
-	traceEnabled bool
+	sessionID     string
+	file          *os.File
+	mu            sync.Mutex
+	logChan       chan logEntry
+	done          chan struct{}
+	infoEnabled   bool
+	traceEnabled  bool
+	broadcaster   *LogBroadcaster
 }
 
 type logEntry struct {
 	level     LogLevel
 	message   string
 	timestamp time.Time
+}
+
+// LogEntry represents a log message to be sent to frontend.
+type LogEntry struct {
+	Level   string `json:"level"`   // "error", "warn", "info", "trace"
+	Message string `json:"message"`
+}
+
+// LogBroadcaster fans log entries out to any number of SSE listeners.
+type LogBroadcaster struct {
+	mu   sync.Mutex
+	subs []chan LogEntry
+}
+
+// Subscribe registers a new listener and returns its channel.
+func (b *LogBroadcaster) Subscribe() <-chan LogEntry {
+	ch := make(chan LogEntry, 16)
+	b.mu.Lock()
+	b.subs = append(b.subs, ch)
+	b.mu.Unlock()
+	return ch
+}
+
+// Unsubscribe removes and closes the channel previously returned by Subscribe.
+func (b *LogBroadcaster) Unsubscribe(ch <-chan LogEntry) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for i, s := range b.subs {
+		if s == ch {
+			b.subs = append(b.subs[:i], b.subs[i+1:]...)
+			close(s)
+			return
+		}
+	}
+}
+
+// Publish sends log entry to every subscriber. Sends are non-blocking.
+func (b *LogBroadcaster) Publish(entry LogEntry) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, ch := range b.subs {
+		select {
+		case ch <- entry:
+		default:
+		}
+	}
 }
 
 func NewLogger(sessionID string) (*Logger, error) {
@@ -64,6 +111,13 @@ func NewLogger(sessionID string) (*Logger, error) {
 	return logger, nil
 }
 
+// SetLogBroadcaster sets the broadcaster for sending logs to frontend
+func (l *Logger) SetLogBroadcaster(b *LogBroadcaster) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.broadcaster = b
+}
+
 func (l *Logger) logWorker() {
 	for {
 		select {
@@ -88,20 +142,33 @@ func (l *Logger) writeEntry(entry logEntry) {
 	defer l.mu.Unlock()
 
 	levelStr := ""
+	broadcastLevel := ""
 	switch entry.level {
 	case LevelError:
 		levelStr = "ERROR"
+		broadcastLevel = "error"
 	case LevelWarning:
 		levelStr = "WARNING"
+		broadcastLevel = "warn"
 	case LevelInfo:
 		levelStr = "INFO"
+		broadcastLevel = "info"
 	case LevelTrace:
 		levelStr = "TRACE"
+		broadcastLevel = "trace"
 	}
 
 	line := fmt.Sprintf("[%s] %s: %s\n", entry.timestamp.Format("15:04:05.000"), levelStr, entry.message)
 	if l.file != nil {
 		l.file.WriteString(line)
+	}
+
+	// Publish to frontend via broadcaster (errors and warnings only)
+	if l.broadcaster != nil && (entry.level == LevelError || entry.level == LevelWarning) {
+		l.broadcaster.Publish(LogEntry{
+			Level:   broadcastLevel,
+			Message: entry.message,
+		})
 	}
 }
 

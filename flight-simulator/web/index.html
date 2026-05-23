@@ -413,6 +413,22 @@
     <div><div class="section-title">Clock</div><button id="pause-btn" class="btn success" onclick="togglePause()">▶ Running</button></div>
 
     <div>
+      <div class="section-title">Waypoints</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:4px">
+        <div><label style="font-size:11px">Lat</label><input type="number" id="goto-lat" placeholder="32.0" step="0.000001"></div>
+        <div><label style="font-size:11px">Lon</label><input type="number" id="goto-lon" placeholder="34.7" step="0.000001"></div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr; gap:4px; margin-bottom:4px">
+        <div><label style="font-size:11px">Alt (m)</label><input type="number" id="goto-alt" placeholder="1000" step="10"></div>
+      </div>
+      <button class="btn" style="width:100%; margin-bottom:8px" onclick="addWaypoint()">Add Waypoint</button>
+      
+      <div id="waypoints-list" style="border:1px solid #444; border-radius:3px; background:#0a0a0a; max-height:150px; overflow-y:auto; font-size:11px">
+        <div style="padding:6px; color:#666; text-align:center">No waypoints</div>
+      </div>
+    </div>
+
+    <div>
       <div class="section-title">Simulator Speed</div>
       <div class="input-row">
         <label>Hz</label>
@@ -484,37 +500,6 @@
     <div>
       <div class="section-title">Commands</div>
       
-      <!-- Go-to-Point -->
-      <div style="margin-bottom:12px">
-        <div style="font-size:12px; color:#999; margin-bottom:4px">Go-to-Point</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:4px">
-          <div><label style="font-size:11px">Lat</label><input type="number" id="goto-lat" placeholder="32.0" step="0.000001"></div>
-          <div><label style="font-size:11px">Lon</label><input type="number" id="goto-lon" placeholder="34.7" step="0.000001"></div>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:4px">
-          <div><label style="font-size:11px">Alt (m)</label><input type="number" id="goto-alt" placeholder="1000" step="10"></div>
-          <div><label style="font-size:11px">Speed (m/s)</label><input type="number" id="goto-speed" placeholder="80" step="1"></div>
-        </div>
-        <button class="btn" style="width:100%; margin-bottom:4px" onclick="sendGoto()">Send Go-to</button>
-      </div>
-
-      <!-- Trajectory -->
-      <div style="margin-bottom:12px">
-        <div style="font-size:12px; color:#999; margin-bottom:4px">Trajectory (Waypoints)</div>
-        <textarea id="traj-input" placeholder="[{&#34;lat&#34;:32.0,&#34;lon&#34;:34.7,&#34;alt&#34;:1000,&#34;speed&#34;:80}, ...]" style="width:100%; height:60px; font-size:10px; padding:4px; border:1px solid #666; background:#1a1a1a; color:#0f0; font-family:monospace"></textarea>
-        <button class="btn" style="width:100%; margin-bottom:4px" onclick="sendTrajectory()">Send Trajectory</button>
-      </div>
-
-      <!-- Set Heading -->
-      <div style="margin-bottom:12px">
-        <div style="font-size:12px; color:#999; margin-bottom:4px">Set Heading</div>
-        <input type="number" id="heading-input" placeholder="0 (degrees)" step="1" style="width:100%; margin-bottom:4px">
-        <button class="btn" style="width:100%; margin-bottom:4px" onclick="sendSetHeading()">Set Heading</button>
-      </div>
-
-      <!-- Hold Position -->
-      <button class="btn" style="margin-bottom:4px" onclick="sendHold()">Hold Position</button>
-      
       <!-- Stop -->
       <button class="btn danger" style="margin-bottom:4px" onclick="sendStop()">Stop</button>
     </div>
@@ -543,6 +528,8 @@ const planeData = {
 
 let isPaused = false, lastState = null, windEnabled = false, simStarted = false, selectedPlane = 'cessna';
 let map = null, planeMarker = null, sse = null, sessionID = null;
+let waypoints = [];  // Track waypoints
+let planeCrashed = false;  // Track if plane has crashed
 
 // Initialize session ID from localStorage (persists across page reloads for same browser)
 function initSessionID() {
@@ -567,6 +554,9 @@ function startSimulation() {
   document.getElementById('menu-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   simStarted = true;
+  waypoints = [];  // Initialize waypoints
+  planeCrashed = false;  // Reset crash state
+  updateWaypointsList();  // Clear waypoints display
   initMap();
   connectSSE();
   loadInitialState();
@@ -634,8 +624,20 @@ function connectSSE() {
       updateStats(st);
       updateMap(st);
       updateModeBadge(st);
+      // Check for crash condition: altitude 0 and all velocities 0
+      if (!planeCrashed && st.alt <= 0 && st.vLat === 0 && st.vLon === 0 && st.vAlt === 0) {
+        planeCrashed = true;
+        log('CRASH: Aircraft altitude reached 0 - plane crashed!', 'error');
+      }
     } catch (_) {}
   };
+  // Handle log events from backend
+  sse.addEventListener('log', (e) => {
+    try {
+      const logData = JSON.parse(e.data);
+      log(logData.message, logData.level);
+    } catch (_) {}
+  });
   sse.onerror = () => {
     setStatus(false);
     log('SSE disconnected — reconnecting…', 'warn');
@@ -754,57 +756,78 @@ async function applyTrace() {
   }
 }
 
-async function sendGoto() {
+function addWaypoint() {
   const lat = parseFloat(document.getElementById('goto-lat').value);
   const lon = parseFloat(document.getElementById('goto-lon').value);
   const alt = parseFloat(document.getElementById('goto-alt').value);
-  const speed = parseFloat(document.getElementById('goto-speed').value);
 
-  if (isNaN(lat) || isNaN(lon) || isNaN(alt) || isNaN(speed)) {
-    log('Invalid go-to parameters', 'error');
+  if (isNaN(lat) || isNaN(lon) || isNaN(alt)) {
+    log('Invalid waypoint parameters', 'error');
     return;
   }
 
-  await post('/command/goto', { lat, lon, alt, speed });
-  log(`Go-to command sent: (${lat}, ${lon}) at ${alt}m, ${speed}m/s`, 'info');
+  // Add to waypoints list
+  waypoints.push({ lat, lon, alt });
+  
+  // Clear inputs
+  document.getElementById('goto-lat').value = '';
+  document.getElementById('goto-lon').value = '';
+  document.getElementById('goto-alt').value = '';
+  
+  // Update display
+  updateWaypointsList();
+  
+  // Send trajectory command
+  sendTrajectory();
+  
+  log(`Waypoint added: (${lat}, ${lon}) at ${alt}m. Total waypoints: ${waypoints.length}`, 'info');
+}
+
+function removeWaypoint(index) {
+  waypoints.splice(index, 1);
+  updateWaypointsList();
+  sendTrajectory();
+  log(`Waypoint removed. Remaining: ${waypoints.length}`, 'info');
+}
+
+function updateWaypointsList() {
+  const listDiv = document.getElementById('waypoints-list');
+  
+  if (waypoints.length === 0) {
+    listDiv.innerHTML = '<div style="padding:6px; color:#666; text-align:center">No waypoints</div>';
+    return;
+  }
+  
+  let html = '';
+  waypoints.forEach((wp, idx) => {
+    html += `
+      <div style="padding:6px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center">
+        <span style="flex:1">${idx + 1}. (${wp.lat.toFixed(4)}, ${wp.lon.toFixed(4)}) ${wp.alt}m</span>
+        <button style="background:#d32f2f; color:white; border:none; border-radius:2px; padding:2px 6px; cursor:pointer; font-size:10px" onclick="removeWaypoint(${idx})">×</button>
+      </div>
+    `;
+  });
+  listDiv.innerHTML = html;
 }
 
 async function sendTrajectory() {
-  const input = document.getElementById('traj-input').value.trim();
-  if (!input) {
-    log('Trajectory input is empty', 'error');
+  if (waypoints.length === 0) {
+    // No waypoints - head north
+    await post('/command/set-heading', { heading: 0 });
+    log('No waypoints set. Heading north.', 'info');
     return;
   }
 
-  try {
-    const waypoints = JSON.parse(input);
-    if (!Array.isArray(waypoints)) throw new Error('Must be an array');
-    await post('/command/trajectory', { waypoints });
-    log(`Trajectory sent with ${waypoints.length} waypoint(s)`, 'info');
-  } catch (e) {
-    log(`Invalid trajectory JSON: ${e.message}`, 'error');
-  }
-}
-
-async function sendSetHeading() {
-  const heading = parseFloat(document.getElementById('heading-input').value);
-  if (isNaN(heading)) {
-    log('Invalid heading value', 'error');
-    return;
-  }
-
-  await post('/command/set-heading', { heading });
-  log(`Set heading command sent: ${heading}°`, 'info');
-}
-
-async function sendHold() {
-  await post('/command/hold', {});
-  log('Hold position command sent', 'info');
+  await post('/command/trajectory', { waypoints });
+  log(`Trajectory sent with ${waypoints.length} waypoint(s)`, 'info');
 }
 
 async function sendStop() {
   if (sse) { sse.close(); }
   await post('/command/stop', {});
+  // Clear waypoints
+  waypoints = [];
+  updateWaypointsList();
   // Clear logs
   document.getElementById('log-lines').innerHTML = '';
   // Reset state and UI

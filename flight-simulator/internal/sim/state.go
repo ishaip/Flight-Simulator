@@ -9,18 +9,18 @@ import (
 type PlaneType string
 
 const (
-	PlaneCessna   PlaneType = "cessna"
-	PlanePiper    PlaneType = "piper"
-	PlaneCirrus   PlaneType = "cirrus"
-	PlaneBonanza  PlaneType = "bonanza"
-	PlaneBaron    PlaneType = "baron"
-	PlaneFighter  PlaneType = "fighter"
+	PlaneCessna  PlaneType = "cessna"
+	PlanePiper   PlaneType = "piper"
+	PlaneCirrus  PlaneType = "cirrus"
+	PlaneBonanza PlaneType = "bonanza"
+	PlaneBaron   PlaneType = "baron"
+	PlaneFighter PlaneType = "fighter"
 )
 
 // PlaneProperties defines performance characteristics for each aircraft type.
 var PlaneProperties = map[PlaneType]struct {
-	CruiseSpeedMS    float64
-	WindResistance   float64 // 0.0 = not affected by wind, 1.0 = full wind effect
+	CruiseSpeedMS  float64
+	WindResistance float64 // 0.0 = not affected by wind, 1.0 = full wind effect
 }{
 	PlaneCessna:  {CruiseSpeedMS: 80.0, WindResistance: 1.0},
 	PlanePiper:   {CruiseSpeedMS: 82.0, WindResistance: 0.9},

@@ -104,6 +104,8 @@ type ClockBus struct {
 }
 
 // New creates a ClockBus with the given starting simulated time and default Hz.
+// The clock starts paused to avoid unnecessary CPU usage when no one is connected.
+// It will automatically resume when the first subscriber connects.
 func New(startSimTime time.Time) *ClockBus {
 	hz := DefaultHz
 	return &ClockBus{
@@ -113,21 +115,31 @@ func New(startSimTime time.Time) *ClockBus {
 		simDt:   hzToDuration(hz),
 		cmdCh:   make(chan clockCmd, 32),
 		resumeC: make(chan struct{}, 1),
+		paused:  true, // Start paused to avoid CPU usage
 	}
 }
 
 // Subscribe returns a buffered channel that will receive Ticks.
 // In RealTime mode ticks are dropped (with a warning) if the buffer fills;
 // in FastForward mode the bus throttles itself instead of dropping.
+// If the clock is paused with no subscribers, it will be automatically resumed.
 func (b *ClockBus) Subscribe() <-chan Tick {
 	sub := &subscriber{ch: make(chan Tick, subBufSize)}
 	b.mu.Lock()
+	wasEmpty := len(b.subs) == 0
 	b.subs = append(b.subs, sub)
 	b.mu.Unlock()
+	
+	// If this is the first subscriber and clock is paused, resume it
+	if wasEmpty && b.paused {
+		b.Resume()
+	}
+	
 	return sub.ch
 }
 
 // Unsubscribe removes the channel returned by Subscribe.
+// If there are no more subscribers, the clock is automatically paused.
 func (b *ClockBus) Unsubscribe(ch <-chan Tick) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -135,6 +147,11 @@ func (b *ClockBus) Unsubscribe(ch <-chan Tick) {
 		if s.ch == ch {
 			b.subs = append(b.subs[:i], b.subs[i+1:]...)
 			close(s.ch)
+			
+			// If no more subscribers, pause the clock
+			if len(b.subs) == 0 {
+				b.paused = true
+			}
 			return
 		}
 	}
