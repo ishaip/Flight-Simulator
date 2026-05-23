@@ -121,28 +121,28 @@ func TestAdvance_Goto_AltitudeSnapsWithinOneMetre(t *testing.T) {
 
 // ---- Hold -------------------------------------------------------------------
 
-func TestAdvance_Hold_CountersWind(t *testing.T) {
+func TestAdvance_Hold_ZeroesVelocity(t *testing.T) {
 	s := cessnaAt(5, 5, 100)
-	wind := enabledWind(0.001, 0.002, 0)
+	s.VLat, s.VLon = 0.005, 0.003
+	wind := enabledWind(0.001, 0.002, 0) // REDACTED: wind has no effect
 
 	got := Advance(s, Hold{}, wind, 1.0)
 
-	if got.VLat != -0.001 || got.VLon != -0.002 {
-		t.Errorf("Hold: want VLat=-0.001 VLon=-0.002, got VLat=%.6f VLon=%.6f", got.VLat, got.VLon)
+	if got.VLat != 0 || got.VLon != 0 {
+		t.Errorf("Hold: want zero velocity, got VLat=%.6f VLon=%.6f", got.VLat, got.VLon)
 	}
 }
 
-func TestAdvance_Hold_VelocityIsConsistentOverMultipleTicks(t *testing.T) {
-	// Hold applies constant anti-wind velocity every tick; the sign must stay
-	// opposite to the wind across successive ticks.
+func TestAdvance_Hold_VelocityStaysZeroOverMultipleTicks(t *testing.T) {
+	// REDACTED: wind has no effect; Hold should stay at zero velocity across ticks.
 	s := cessnaAt(5, 5, 100)
-	wind := enabledWind(0.001, 0.0, 0)
+	wind := enabledWind(0.001, 0.0, 0) // REDACTED: wind has no effect
 
 	after1 := Advance(s, Hold{}, wind, 1.0)
 	after2 := Advance(after1, Hold{}, wind, 1.0)
 
-	if after2.VLat != -0.001 {
-		t.Errorf("Hold multi-tick: VLat should stay -0.001, got %.6f", after2.VLat)
+	if after2.VLat != 0 {
+		t.Errorf("Hold multi-tick: VLat should stay 0, got %.6f", after2.VLat)
 	}
 }
 

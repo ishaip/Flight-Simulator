@@ -75,7 +75,7 @@ func advanceGoto(s AircraftState, g GotoPoint, wLat, wLon, wAlt, dt float64) Air
 		s.VLat = desiredSpeed * math.Cos(rad)
 		s.VLon = desiredSpeed * math.Sin(rad)
 
-			// REDACTED: wind effect removed
+		// REDACTED: wind effect removed
 
 		s.Lat += s.VLat * dt
 		s.Lon += s.VLon * dt
@@ -102,20 +102,22 @@ func advanceTrajectory(s AircraftState, t *Trajectory, wLat, wLon, wAlt, dt floa
 		s.Heading = 0
 		planeProps := PlaneProperties[s.PlaneType]
 		desiredSpeed := planeProps.CruiseSpeedMS / metersPerDegree // convert m/s → °/s
-		
+
 		// Set velocity for northward flight
-		rad := 0.0 // 0 radians = north
-		s.VLat = desiredSpeed * math.Cos(rad)  // = desiredSpeed
-		s.VLon = desiredSpeed * math.Sin(rad)  // = 0
-		
+		rad := 0.0                            // 0 radians = north
+		s.VLat = desiredSpeed * math.Cos(rad) // = desiredSpeed
+		s.VLon = desiredSpeed * math.Sin(rad) // = 0
+
 		// REDACTED: wind effect removed
-		_ = wLat; _ = wLon; _ = wAlt
+		_ = wLat
+		_ = wLon
+		_ = wAlt
 
 		// Update position
 		s.Lat += s.VLat * dt
 		s.Lon += s.VLon * dt
 		s.Alt += s.VAlt * dt
-		
+
 		return s
 	}
 
@@ -143,7 +145,9 @@ func advanceSetHeading(s AircraftState, sh SetHeading, wLat, wLon, wAlt, dt floa
 	s.Heading = sh.Heading
 
 	// REDACTED: wind effect removed
-	_ = wLat; _ = wLon; _ = wAlt
+	_ = wLat
+	_ = wLon
+	_ = wAlt
 
 	// Update position based on velocity
 	s.Lat += s.VLat * dt
@@ -156,7 +160,9 @@ func advanceSetHeading(s AircraftState, sh SetHeading, wLat, wLon, wAlt, dt floa
 // advanceCruise continues cruising with current velocity (no command).
 func advanceCruise(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState {
 	// REDACTED: wind effect removed
-	_ = wLat; _ = wLon; _ = wAlt
+	_ = wLat
+	_ = wLon
+	_ = wAlt
 
 	// Update position based on velocity
 	s.Lat += s.VLat * dt
@@ -169,7 +175,9 @@ func advanceCruise(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState 
 // advanceHold zeroes velocity and holds position.
 func advanceHold(s AircraftState, wLat, wLon, wAlt, dt float64) AircraftState {
 	// REDACTED: wind effect removed
-	_ = wLat; _ = wLon; _ = wAlt
+	_ = wLat
+	_ = wLon
+	_ = wAlt
 	s.VLat = 0
 	s.VLon = 0
 	s.VAlt = 0
