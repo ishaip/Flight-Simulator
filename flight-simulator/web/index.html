@@ -607,7 +607,7 @@ function initMap() {
 
 function rotatePlane(headingDeg) {
   const el = document.getElementById('plane-icon-el');
-  if (el) el.style.transform = `rotate(${headingDeg}deg)`;
+  if (el) el.style.transform = `rotate(${headingDeg - 90}deg)`;
 }
 
 function connectSSE() {
@@ -629,6 +629,8 @@ function connectSSE() {
         planeCrashed = true;
         log('CRASH: Aircraft altitude reached 0 - plane crashed!', 'error');
       }
+      // Check if current waypoint is reached and remove it
+      checkAndRemoveWaypoint(st);
     } catch (_) {}
   };
   // Handle log events from backend
@@ -757,9 +759,14 @@ async function applyTrace() {
 }
 
 function addWaypoint() {
-  const lat = parseFloat(document.getElementById('goto-lat').value);
-  const lon = parseFloat(document.getElementById('goto-lon').value);
-  const alt = parseFloat(document.getElementById('goto-alt').value);
+  const latInput = document.getElementById('goto-lat').value.trim();
+  const lonInput = document.getElementById('goto-lon').value.trim();
+  const altInput = document.getElementById('goto-alt').value.trim();
+
+  // Use current position as defaults if fields are empty
+  const lat = latInput === '' ? (lastState?.lat ?? TEL_AVIV_LAT) : parseFloat(latInput);
+  const lon = lonInput === '' ? (lastState?.lon ?? TEL_AVIV_LON) : parseFloat(lonInput);
+  const alt = altInput === '' ? (lastState?.alt ?? START_ALT) : parseFloat(altInput);
 
   if (isNaN(lat) || isNaN(lon) || isNaN(alt)) {
     log('Invalid waypoint parameters', 'error');
@@ -780,7 +787,7 @@ function addWaypoint() {
   // Send trajectory command
   sendTrajectory();
   
-  log(`Waypoint added: (${lat}, ${lon}) at ${alt}m. Total waypoints: ${waypoints.length}`, 'info');
+  log(`Waypoint added: (${lat.toFixed(4)}, ${lon.toFixed(4)}) at ${alt.toFixed(1)}m. Total waypoints: ${waypoints.length}`, 'info');
 }
 
 function removeWaypoint(index) {
@@ -810,11 +817,39 @@ function updateWaypointsList() {
   listDiv.innerHTML = html;
 }
 
+function checkAndRemoveWaypoint(st) {
+  // Check if the first waypoint is reached (aircraft at waypoint within tolerance)
+  if (waypoints.length === 0) return;
+  
+  const wp = waypoints[0];
+  const arrivalToleranceDeg = 0.0005; // ~55 m (matches backend)
+  const arrivalToleranceAlt = 1.0; // Same as backend
+  
+  // Calculate horizontal distance
+  const dLat = st.lat - wp.lat;
+  const dLon = st.lon - wp.lon;
+  const horizDist = Math.sqrt(dLat * dLat + dLon * dLon);
+  
+  // Calculate vertical distance
+  const dAlt = Math.abs(st.alt - wp.alt);
+  
+  // Check if aircraft is at waypoint and velocity is near zero (reached destination)
+  if (horizDist < arrivalToleranceDeg && dAlt < arrivalToleranceAlt && 
+      Math.abs(st.vLat) < 0.00001 && Math.abs(st.vLon) < 0.00001 && Math.abs(st.vAlt) < 0.1) {
+    waypoints.shift(); // Remove first waypoint
+    updateWaypointsList();
+    if (waypoints.length > 0) {
+      log(`Waypoint reached! Continuing to next waypoint (${waypoints.length} remaining).`, 'info');
+    } else {
+      log('All waypoints reached! Heading north.', 'info');
+    }
+  }
+}
+
 async function sendTrajectory() {
   if (waypoints.length === 0) {
-    // No waypoints - head north
-    await post('/command/set-heading', { heading: 0 });
-    log('No waypoints set. Heading north.', 'info');
+    // No waypoints - plane defaults to heading north naturally
+    log('No waypoints. Plane heading north by default.', 'info');
     return;
   }
 

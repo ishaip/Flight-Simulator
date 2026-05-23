@@ -11,7 +11,7 @@ const (
 	maxClimbRateMS = 20.0
 
 	// arrivalToleranceDeg is the arrival detection radius in degrees.
-	arrivalToleranceDeg = 0.0001 // ~11 m
+	arrivalToleranceDeg = 0.0005 // ~55 m
 
 	// metersPerDegree is a rough conversion at mid-latitudes.
 	metersPerDegree = 111_320.0
@@ -102,20 +102,42 @@ func advanceGoto(s AircraftState, g GotoPoint, wLat, wLon, wAlt, dt float64) Air
 func advanceTrajectory(s AircraftState, t *Trajectory, wLat, wLon, wAlt, dt float64) AircraftState {
 	wp := t.CurrentWaypoint()
 	if wp == nil {
-		return advanceStop(s)
+		// No more waypoints — continue heading north (0 degrees) at cruise speed
+		s.Heading = 0
+		planeProps := PlaneProperties[s.PlaneType]
+		desiredSpeed := planeProps.CruiseSpeedMS / metersPerDegree // convert m/s → °/s
+		
+		// Set velocity for northward flight
+		rad := 0.0 // 0 radians = north
+		s.VLat = desiredSpeed * math.Cos(rad)  // = desiredSpeed
+		s.VLon = desiredSpeed * math.Sin(rad)  // = 0
+		
+		// Apply wind effect
+		scaledWLat := wLat * planeProps.WindResistance
+		scaledWLon := wLon * planeProps.WindResistance
+		s.VLat = clamp(s.VLat+scaledWLat, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+		s.VLon = clamp(s.VLon+scaledWLon, -maxSpeedDegPerSec, maxSpeedDegPerSec)
+		s.VAlt = clamp(s.VAlt+wAlt, -maxClimbRateMS, maxClimbRateMS)
+		
+		// Update position
+		s.Lat += s.VLat * dt
+		s.Lon += s.VLon * dt
+		s.Alt += s.VAlt * dt
+		
+		return s
 	}
 
 	g := GotoPoint{Lat: wp.Lat, Lon: wp.Lon, Alt: wp.Alt, Speed: wp.Speed}
 	next := advanceGoto(s, g, wLat, wLon, wAlt, dt)
 
-	// Check arrival: if velocity went to zero at the target, advance waypoint.
+	// Check arrival: if velocity went to zero at the target, remove waypoint and advance.
 	// Only advance if both horizontal and vertical distances are small.
 	if next.VLat == 0 && next.VLon == 0 && next.VAlt == 0 {
 		dLat := next.Lat - wp.Lat
 		dLon := next.Lon - wp.Lon
 		dAlt := next.Alt - wp.Alt
 		horizDist := math.Sqrt(dLat*dLat + dLon*dLon)
-		
+
 		// Arrival if both horizontal (< tolerance) and vertical (< 1m) distances are met
 		if horizDist < arrivalToleranceDeg && math.Abs(dAlt) < 1.0 {
 			t.Advance()

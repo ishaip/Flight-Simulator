@@ -14,15 +14,15 @@ import (
 
 // Session represents a single user's flight simulator instance.
 type Session struct {
-	ID            string
-	PlaneType     sim.PlaneType
-	Store         *sim.StateStore
-	Broadcaster   *sim.StateBroadcaster
+	ID             string
+	PlaneType      sim.PlaneType
+	Store          *sim.StateStore
+	Broadcaster    *sim.StateBroadcaster
 	LogBroadcaster *log.LogBroadcaster
-	Actor         *sim.SimulationActor
-	Wind          *env.WindModel
-	Logger        *log.Logger
-	CreatedAt     time.Time
+	Actor          *sim.SimulationActor
+	Wind           *env.WindModel
+	Logger         *log.Logger
+	CreatedAt      time.Time
 }
 
 // Manager manages all active sessions.
@@ -99,15 +99,15 @@ func (m *Manager) GetOrCreate(sessionID string, planeType sim.PlaneType) *Sessio
 	actor := sim.NewActor(tickCh, store, broadcaster, wind, initial, logger)
 
 	session := &Session{
-		ID:            sessionID,
-		PlaneType:     planeType,
-		Store:         store,
-		Broadcaster:   broadcaster,
+		ID:             sessionID,
+		PlaneType:      planeType,
+		Store:          store,
+		Broadcaster:    broadcaster,
 		LogBroadcaster: logBroadcaster,
-		Actor:         actor,
-		Wind:          wind,
-		Logger:        logger,
-		CreatedAt:     time.Now(),
+		Actor:          actor,
+		Wind:           wind,
+		Logger:         logger,
+		CreatedAt:      time.Now(),
 	}
 
 	m.sessions[sessionID] = session

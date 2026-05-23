@@ -18,14 +18,14 @@ const (
 )
 
 type Logger struct {
-	sessionID     string
-	file          *os.File
-	mu            sync.Mutex
-	logChan       chan logEntry
-	done          chan struct{}
-	infoEnabled   bool
-	traceEnabled  bool
-	broadcaster   *LogBroadcaster
+	sessionID    string
+	file         *os.File
+	mu           sync.Mutex
+	logChan      chan logEntry
+	done         chan struct{}
+	infoEnabled  bool
+	traceEnabled bool
+	broadcaster  *LogBroadcaster
 }
 
 type logEntry struct {
@@ -36,7 +36,7 @@ type logEntry struct {
 
 // LogEntry represents a log message to be sent to frontend.
 type LogEntry struct {
-	Level   string `json:"level"`   // "error", "warn", "info", "trace"
+	Level   string `json:"level"` // "error", "warn", "info", "trace"
 	Message string `json:"message"`
 }
 

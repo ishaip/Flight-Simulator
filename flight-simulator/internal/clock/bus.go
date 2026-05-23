@@ -129,12 +129,12 @@ func (b *ClockBus) Subscribe() <-chan Tick {
 	wasEmpty := len(b.subs) == 0
 	b.subs = append(b.subs, sub)
 	b.mu.Unlock()
-	
+
 	// If this is the first subscriber and clock is paused, resume it
 	if wasEmpty && b.paused {
 		b.Resume()
 	}
-	
+
 	return sub.ch
 }
 
@@ -147,7 +147,7 @@ func (b *ClockBus) Unsubscribe(ch <-chan Tick) {
 		if s.ch == ch {
 			b.subs = append(b.subs[:i], b.subs[i+1:]...)
 			close(s.ch)
-			
+
 			// If no more subscribers, pause the clock
 			if len(b.subs) == 0 {
 				b.paused = true

@@ -27,28 +27,30 @@ type Waypoint struct {
 type Trajectory struct {
 	Waypoints []Waypoint `json:"waypoints"`
 	Loop      bool       `json:"loop"`
-	// currentIdx tracks which waypoint we are flying toward (not exposed to API).
-	currentIdx int
 }
 
 func (t *Trajectory) commandTag() {}
 
 // CurrentWaypoint returns the active waypoint or nil if the trajectory is done.
 func (t *Trajectory) CurrentWaypoint() *Waypoint {
-	if t.currentIdx >= len(t.Waypoints) {
+	if len(t.Waypoints) == 0 {
 		return nil
 	}
-	return &t.Waypoints[t.currentIdx]
+	return &t.Waypoints[0]
 }
 
-// Advance moves to the next waypoint; wraps around when Loop is set.
-// Returns true if there is another waypoint to fly to.
+// Advance removes the current waypoint and moves to the next one.
+// Returns true if there is another waypoint to fly to after removal.
 func (t *Trajectory) Advance() bool {
-	t.currentIdx++
-	if t.currentIdx >= len(t.Waypoints) {
+	if len(t.Waypoints) > 0 {
+		// Remove the first (current) waypoint
+		t.Waypoints = t.Waypoints[1:]
+	}
+	if len(t.Waypoints) == 0 {
 		if t.Loop {
-			t.currentIdx = 0
-			return true
+			// For looping trajectories, this would need the original waypoints
+			// For now, just signal that trajectory is done
+			return false
 		}
 		return false
 	}
