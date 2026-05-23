@@ -101,6 +101,100 @@ All configuration is via environment variables. See [`.env.example`](.env.exampl
 
 ---
 
+## Deployment & Self-Hosting
+
+### Option 1: Docker (Recommended)
+
+The easiest way to host the simulator. Pull the image from Docker Hub:
+
+```bash
+docker run -p 8080:8080 yourusername/flight-simulator:latest
+```
+
+Or build and run locally:
+
+```bash
+docker build -t flight-simulator:latest .
+docker run -p 8080:8080 flight-simulator:latest
+```
+
+Then visit `http://localhost:8080` (or your server's IP).
+
+### Option 2: Docker Compose
+
+For production with environment configuration:
+
+```bash
+docker-compose up -d
+```
+
+Edit `docker-compose.yml` to customize the port and environment variables.
+
+### Option 3: Native Binary (No Docker)
+
+Download a pre-built binary from [GitHub Releases](../../releases):
+
+**Linux (x64):**
+```bash
+wget https://github.com/yourusername/flight-simulator/releases/download/v1.0.0/flight-simulator-linux-amd64
+chmod +x flight-simulator-linux-amd64
+./flight-simulator-linux-amd64
+```
+
+**macOS (Intel):**
+```bash
+curl -L https://github.com/yourusername/flight-simulator/releases/download/v1.0.0/flight-simulator-macos-amd64 -o flight-simulator
+chmod +x flight-simulator
+./flight-simulator
+```
+
+**macOS (Apple Silicon):**
+```bash
+curl -L https://github.com/yourusername/flight-simulator/releases/download/v1.0.0/flight-simulator-macos-arm64 -o flight-simulator
+chmod +x flight-simulator
+./flight-simulator
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://github.com/yourusername/flight-simulator/releases/download/v1.0.0/flight-simulator-windows-amd64.exe" -OutFile "flight-simulator.exe"
+.\flight-simulator.exe
+```
+
+Then open `http://localhost:8080` in your browser.
+
+### Building Binaries for Multiple Platforms
+
+To build binaries for all platforms locally:
+
+```bash
+make build-all
+# outputs: bin/flight-simulator-linux-amd64, bin/flight-simulator-macos-amd64, bin/flight-simulator-macos-arm64, bin/flight-simulator-windows-amd64.exe
+```
+
+### CI/CD & Automated Releases
+
+GitHub Actions automatically:
+- Runs tests on every push and pull request
+- Builds Docker images and publishes to Docker Hub (on tag push)
+- Creates pre-built binaries for Windows, macOS (Intel & ARM), and Linux (on tag push)
+
+To use this:
+
+1. **Set up Docker Hub secrets** in GitHub (Settings → Secrets):
+   - `DOCKER_USERNAME`: your Docker Hub username
+   - `DOCKER_PASSWORD`: your Docker Hub token
+
+2. **Tag a release:**
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+3. **Binaries & Docker image are automatically built and released!**
+
+---
+
 ## API Reference
 
 The full endpoint list is available at runtime:

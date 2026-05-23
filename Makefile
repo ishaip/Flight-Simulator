@@ -1,4 +1,4 @@
-.PHONY: run build test lint clean docker-build docker-run
+.PHONY: run build test lint clean docker-build docker-run docker-compose-up build-all
 
 BACKEND_DIR  := backend
 FRONTEND_DIR := frontend
@@ -46,6 +46,21 @@ docker-run:
 ## docker-compose-up: start via docker-compose
 docker-compose-up:
 	docker-compose up --build
+
+# ── Cross-Platform Builds ─────────────────────────────────────────────────────
+
+## build-all: build binaries for Linux, macOS (Intel), macOS (ARM), and Windows
+build-all: clean
+	mkdir -p bin
+	@echo "Building for Linux (amd64)..."
+	cd $(BACKEND_DIR) && GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/flight-simulator-linux-amd64 ./cmd/simulator
+	@echo "Building for macOS (amd64/Intel)..."
+	cd $(BACKEND_DIR) && GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/flight-simulator-macos-amd64 ./cmd/simulator
+	@echo "Building for macOS (arm64/Apple Silicon)..."
+	cd $(BACKEND_DIR) && GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o ../bin/flight-simulator-macos-arm64 ./cmd/simulator
+	@echo "Building for Windows (amd64)..."
+	cd $(BACKEND_DIR) && GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ../bin/flight-simulator-windows-amd64.exe ./cmd/simulator
+	@echo "✓ All binaries built successfully in ./bin/"
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 help:
