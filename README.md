@@ -2,9 +2,7 @@
 
 A real-time browser-based flight simulator with a Go backend and a vanilla JS frontend.
 
-```
-http://localhost:8080
-```
+> Live at `http://localhost:8080` after running locally.
 
 ---
 
@@ -43,47 +41,26 @@ flight-simulator/
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Docker (recommended, no Go required)
 
-- [Go 1.22+](https://go.dev/dl/)
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop)
 
-### Run in development
-
-```sh
-make run
-```
-
-The server starts on `http://localhost:8080`. The backend serves `../frontend` relative to its
-working directory — no separate frontend server needed.
-
-### Build a binary
-
-```sh
-make build
-# outputs: bin/flight-simulator
-```
-
-### Run with Docker
-
-**Prerequisites:**
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (includes docker & docker-compose)
-
-**On Linux/macOS:**
-```sh
-make docker-build
-make docker-run
-```
-
-**On Windows (PowerShell):**
-```powershell
-# Skip 'make' — run docker directly
-docker build -t flight-simulator:latest .
-docker run --rm -p 8080:8080 flight-simulator:latest
-```
-
-**Or use Docker Compose (all platforms):**
-```sh
+```bash
+git clone https://github.com/ishaip/Flight-Simulator.git
+cd Flight-Simulator
 docker-compose up --build
+```
+
+Then open `http://localhost:8080` in your browser.
+
+### Option 2: Run from source
+
+**Prerequisites:** [Go 1.22+](https://go.dev/dl/)
+
+```bash
+git clone https://github.com/ishaip/Flight-Simulator.git
+cd Flight-Simulator/backend
+go run ./cmd/simulator
 ```
 
 Then open `http://localhost:8080` in your browser.
@@ -103,32 +80,24 @@ All configuration is via environment variables. See [`.env.example`](.env.exampl
 
 ## Deployment & Self-Hosting
 
-### Option 1: Docker (Recommended)
-
-The easiest way to host the simulator. Pull the image from Docker Hub:
+### Docker Compose (easiest)
 
 ```bash
-docker run -p 8080:8080 yourusername/flight-simulator:latest
-```
-
-Or build and run locally:
-
-```bash
-docker build -t flight-simulator:latest .
-docker run -p 8080:8080 flight-simulator:latest
-```
-
-Then visit `http://localhost:8080` (or your server's IP).
-
-### Option 2: Docker Compose
-
-For production with environment configuration:
-
-```bash
+git clone https://github.com/ishaip/Flight-Simulator.git
+cd Flight-Simulator
 docker-compose up -d
 ```
 
-Edit `docker-compose.yml` to customize the port and environment variables.
+Then visit `http://localhost:8080`.
+
+### Manual Docker
+
+```bash
+git clone https://github.com/ishaip/Flight-Simulator.git
+cd Flight-Simulator
+docker build -t flight-simulator:latest .
+docker run -p 8080:8080 flight-simulator:latest
+```
 
 ---
 
