@@ -11,7 +11,7 @@ const planeData = {
   fighter:  { icon: '🎖️', name: 'F-16 Fighting Falcon', desc: 'Supersonic military fighter. Extreme performance.' },
 };
 
-let isPaused = false, lastState = null, windEnabled = false, simStarted = false, selectedPlane = 'cessna';
+let isPaused = false, lastState = null, simStarted = false, selectedPlane = 'cessna';
 let map = null, planeMarker = null, sse = null, sessionID = null;
 let waypoints = [];  // Track waypoints
 let planeCrashed = false;  // Track if plane has crashed
@@ -157,18 +157,6 @@ function updateMap(st) {
 }
 
 function updateModeBadge(st) {}
-
-async function refreshWindDisplay() {
-  try {
-    const wlat = parseFloat(document.getElementById('w-lat').value) || 0;
-    const wlon = parseFloat(document.getElementById('w-lon').value) || 0;
-    const walt = parseFloat(document.getElementById('w-alt').value) || 0;
-    const on = document.getElementById('wind-toggle').checked;
-    setText('s-wlat', on ? fmtE(wlat) : '0');
-    setText('s-wlon', on ? fmtE(wlon) : '0');
-    setText('s-walt', on ? fmt1(walt)  : '0');
-  } catch(_) {}
-}
 
 async function post(path, body) {
   try {
@@ -369,6 +357,12 @@ async function sendStop() {
   setText('s-heading', '—');
   setText('s-seq', '—');
   setText('s-simtime', '—');
+  // Reset to default plane selection
+  document.getElementById('plane-select').value = 'cessna';
+  updatePlanePreview();
+  // Clear session ID so a fresh session with default values is created on next start
+  sessionID = null;
+  localStorage.removeItem('flight_simulator_session_id');
   // Return to main menu
   document.getElementById('menu-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');

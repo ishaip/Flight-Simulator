@@ -16,6 +16,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /flight-simulator ./cm
 # ── Stage 2: Minimal runtime image ───────────────────────────────────────────
 FROM alpine:3.19
 
+# Set UTF-8 locale and timezone support
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
 # Non-root user for security
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app

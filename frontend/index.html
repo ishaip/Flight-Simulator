@@ -24,7 +24,7 @@
       <label for="plane-select">Select Aircraft</label>
       <div class="plane-preview" id="plane-icon-preview">🛩️</div>
       <select id="plane-select" onchange="updatePlanePreview()">
-        <option value="cessna">Cessna 172 Skyhawk (Light)</option>
+        <option value="cessna" selected>Cessna 172 Skyhawk (Light)</option>
         <option value="piper">Piper PA-28 Cherokee (Light)</option>
         <option value="cirrus">Cirrus SR22 (Light Performance)</option>
         <option value="bonanza">Beechcraft Bonanza (Medium)</option>
@@ -60,12 +60,6 @@
         <span class="sub-item"><span class="sub-key">lat</span><span class="stat-val" id="s-vlat">—</span></span>
         <span class="sub-item"><span class="sub-key">lon</span><span class="stat-val" id="s-vlon">—</span></span>
         <span class="sub-item"><span class="sub-key">height</span><span class="stat-val" id="s-valt">—</span><span class="stat-unit">m/s</span></span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">wind</span>
-        <span class="sub-item"><span class="sub-key">lat</span><span class="stat-val" id="s-wlat">—</span></span>
-        <span class="sub-item"><span class="sub-key">lon</span><span class="stat-val" id="s-wlon">—</span></span>
-        <span class="sub-item"><span class="sub-key">height</span><span class="stat-val" id="s-walt">—</span><span class="stat-unit">m/s</span></span>
       </div>
       <div class="stat-row">
         <span class="stat-label">sim time</span>
@@ -117,21 +111,6 @@
         <span id="hz-val" style="min-width:24px;color:var(--text)">20</span>
       </div>
       <button class="btn primary" style="margin-top:4px" onclick="applyHz()">Apply</button>
-    </div>
-
-    <div>
-      <div class="section-title">Wind</div>
-      <div class="toggle-wrap" style="margin-bottom:4px">
-        <label for="wind-toggle">Enable Wind</label>
-        <label class="switch">
-          <input type="checkbox" id="wind-toggle" onchange="applyWind()" />
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="input-row"><label>vLat °/s</label><input type="number" id="w-lat" value="0.000002" step="0.000001" style="width:100px" /></div>
-      <div class="input-row" style="margin-top:3px"><label>vLon °/s</label><input type="number" id="w-lon" value="0.000005" step="0.000001" style="width:100px" /></div>
-      <div class="input-row" style="margin-top:3px"><label>vAlt m/s</label><input type="number" id="w-alt" value="0" step="0.1" style="width:100px" /></div>
-      <button class="btn" style="margin-top:4px" onclick="applyWind()">Update Vector</button>
     </div>
 
     <div>
@@ -195,5 +174,9 @@
 
 <!-- App logic -->
 <script src="js/app.js"></script>
+<script>
+  // Initialize plane preview when page loads
+  document.addEventListener('DOMContentLoaded', updatePlanePreview);
+</script>
 </body>
 </html>
