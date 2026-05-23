@@ -1,0 +1,25 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck       # unchecked errors
+    - govet          # suspicious constructs (go vet)
+    - staticcheck    # broad static analysis
+    - gosimple       # simplification suggestions
+    - ineffassign    # unused variable assignments
+    - unused         # unused code
+    - bodyclose      # unclosed http.Response bodies
+    - noctx          # http requests without context
+
+linters-settings:
+  errcheck:
+    # Also catch unchecked type assertions.
+    check-type-assertions: true
+
+issues:
+  exclude-rules:
+    # Unchecked errors inside test files are acceptable (e.g. json.Encoder).
+    - path: _test\.go
+      linters:
+        - errcheck

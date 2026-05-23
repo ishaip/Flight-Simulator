@@ -19,6 +19,11 @@ backend/outputs/*.log
 .idea/
 *.DS_Store
 Thumbs.db
+~$*
+
+# ── Assignment brief (not for public repos) ───────────────────────────────────
+*.docx
+Flight Simulator Instructions.md
 
 # ── Go ────────────────────────────────────────────────────────────────────────
 go.sum

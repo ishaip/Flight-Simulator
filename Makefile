@@ -19,9 +19,14 @@ build:
 test:
 	cd $(BACKEND_DIR) && go test ./... -v
 
-## lint: run static analysis
+## lint: run static analysis (golangci-lint if available, else go vet)
 lint:
-	cd $(BACKEND_DIR) && go vet ./...
+	@if command -v golangci-lint > /dev/null 2>&1; then \
+		cd $(BACKEND_DIR) && golangci-lint run ./...; \
+	else \
+		echo "golangci-lint not found, falling back to go vet (install: https://golangci-lint.run/usage/install/)"; \
+		cd $(BACKEND_DIR) && go vet ./...; \
+	fi
 
 ## clean: remove build outputs
 clean:

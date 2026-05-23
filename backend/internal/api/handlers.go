@@ -52,7 +52,9 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 // decodeBody decodes the JSON request body into v and returns false on error.
+// The body is limited to 64 KB to prevent resource exhaustion.
 func decodeBody(w http.ResponseWriter, r *http.Request, v any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<16) // 64 KB
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
 		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return false
@@ -77,6 +79,22 @@ func (d *deps) handleGoto(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	if body.Lat < -90 || body.Lat > 90 {
+		http.Error(w, "lat must be in [-90, 90]", http.StatusBadRequest)
+		return
+	}
+	if body.Lon < -180 || body.Lon > 180 {
+		http.Error(w, "lon must be in [-180, 180]", http.StatusBadRequest)
+		return
+	}
+	if body.Alt < 0 {
+		http.Error(w, "alt must be >= 0", http.StatusBadRequest)
+		return
+	}
+	if body.Speed < 0 {
+		http.Error(w, "speed must be >= 0", http.StatusBadRequest)
+		return
+	}
 	sess.Logger.Trace(fmt.Sprintf("command/goto: lat=%.6f lon=%.6f alt=%.1f speed=%.1f", body.Lat, body.Lon, body.Alt, body.Speed))
 	sess.Logger.Info(fmt.Sprintf("User command: goto to (%.6f, %.6f) at %.1f m altitude with %.1f m/s", body.Lat, body.Lon, body.Alt, body.Speed))
 	sess.Actor.SendCommand(sim.GotoPoint{Lat: body.Lat, Lon: body.Lon, Alt: body.Alt, Speed: body.Speed})
@@ -98,9 +116,32 @@ func (d *deps) handleTrajectory(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &body) {
 		return
 	}
+	const maxWaypoints = 500
 	if len(body.Waypoints) == 0 {
 		http.Error(w, "waypoints must not be empty", http.StatusBadRequest)
 		return
+	}
+	if len(body.Waypoints) > maxWaypoints {
+		http.Error(w, fmt.Sprintf("waypoints must not exceed %d", maxWaypoints), http.StatusBadRequest)
+		return
+	}
+	for i, wp := range body.Waypoints {
+		if wp.Lat < -90 || wp.Lat > 90 {
+			http.Error(w, fmt.Sprintf("waypoint %d: lat must be in [-90, 90]", i), http.StatusBadRequest)
+			return
+		}
+		if wp.Lon < -180 || wp.Lon > 180 {
+			http.Error(w, fmt.Sprintf("waypoint %d: lon must be in [-180, 180]", i), http.StatusBadRequest)
+			return
+		}
+		if wp.Alt < 0 {
+			http.Error(w, fmt.Sprintf("waypoint %d: alt must be >= 0", i), http.StatusBadRequest)
+			return
+		}
+		if wp.Speed < 0 {
+			http.Error(w, fmt.Sprintf("waypoint %d: speed must be >= 0", i), http.StatusBadRequest)
+			return
+		}
 	}
 	sess.Actor.SendCommand(&sim.Trajectory{Waypoints: body.Waypoints, Loop: body.Loop})
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
@@ -132,6 +173,10 @@ func (d *deps) handleSetHeading(w http.ResponseWriter, r *http.Request) {
 		Heading float64 `json:"heading"`
 	}
 	if !decodeBody(w, r, &body) {
+		return
+	}
+	if body.Heading < 0 || body.Heading >= 360 {
+		http.Error(w, "heading must be in [0, 360)", http.StatusBadRequest)
 		return
 	}
 	sess.Logger.Trace(fmt.Sprintf("command/set-heading: heading=%.1f", body.Heading))
@@ -216,6 +261,10 @@ func (d *deps) handleHz(w http.ResponseWriter, r *http.Request) {
 		Hz float64 `json:"hz"`
 	}
 	if !decodeBody(w, r, &body) {
+		return
+	}
+	if body.Hz < clock.MinHz || body.Hz > clock.MaxHz {
+		http.Error(w, fmt.Sprintf("hz must be in [%.0f, %.0f]", clock.MinHz, clock.MaxHz), http.StatusBadRequest)
 		return
 	}
 	sess.Logger.Trace(fmt.Sprintf("sim/hz: hz=%.1f", body.Hz))
